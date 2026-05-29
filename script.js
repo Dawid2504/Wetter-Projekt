@@ -25,6 +25,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const weatherIcon = document.getElementById("weather-icon");
   const forecastContainer = document.getElementById("forecast-container");
   const forecastScroll = document.getElementById("forecast-scroll");
+  const searchCache = new Set();
+
+  let timeOffset = 0;
+  let searchTimeout = null;
+  let currentShowAll = false;
+  const searchCache = new Set(); // ← DAS HINZUFÜGEN!
 
   const WMO_ICONS = {
     0: "☀️",
@@ -474,10 +480,9 @@ document.addEventListener("DOMContentLoaded", () => {
     day: "numeric",
   };
 
-  function applyFilter(query, showAllIfEmpty = false) {
+  function applyFilter(query, showAllIfEmpty = false, skipAPISearch = false) {
     currentShowAll = showAllIfEmpty;
     const term = query.toLowerCase().trim();
-
     container.innerHTML = "";
     favContainer.innerHTML = "";
 
@@ -536,8 +541,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateClocks();
 
-    // 🔥 NEU: API-Suche mit 600ms Verzögerung (Debouncing)
-    if (term.length >= 2) {
+    // ✅ API-Suche nur wenn: nicht übersprungen UND nicht im Cache
+    if (!skipAPISearch && term.length >= 2 && !searchCache.has(term)) {
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => searchCityAPI(term), 600);
     }
@@ -545,6 +550,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 🌐 NEU: Open-Meteo API-Suche für beliebige Städte weltweit
   async function searchCityAPI(query) {
+    // ✅ Nicht nochmal suchen, wenn bereits im Cache
+    if (searchCache.has(query)) return;
+    searchCache.add(query);
+
     try {
       statusMessage.textContent = `🔍 Suche "${query}" weltweit...`;
       const res = await fetch(
@@ -576,7 +585,8 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
 
-        applyFilter(query, false);
+        // ✅ skipAPISearch = true verhindert Endlosschleife
+        applyFilter(query, false, true);
 
         if (newCitiesAdded > 0) {
           statusMessage.textContent = `✅ ${newCitiesAdded} neue Stadt${newCitiesAdded === 1 ? "" : "e"} weltweit gefunden!`;
@@ -585,7 +595,7 @@ document.addEventListener("DOMContentLoaded", () => {
         statusMessage.textContent = `Keine Städte weltweit für "${query}" gefunden.`;
       }
     } catch (error) {
-      console.warn("API-Suche fehlgeschlagen:", error);
+      console.warn("API-Suche fehlgeschlagen: ", error);
       statusMessage.textContent = `⚠️ Online-Suche nicht möglich.`;
     }
   }

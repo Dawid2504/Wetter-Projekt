@@ -21,6 +21,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const weatherError = document.getElementById("weather-error");
   const weatherIcon = document.getElementById("weather-icon");
   const forecastContainer = document.getElementById("forecast-container");
+  const welcomeHero = document.getElementById("welcome-hero");
+  const utcTime = document.getElementById("utc-time");
+  const utcDate = document.getElementById("utc-date");
+  const quickCities = document.getElementById("quick-cities");
   const forecastScroll = document.getElementById("forecast-scroll");
 
   const searchCache = new Set();
@@ -477,13 +481,35 @@ document.addEventListener("DOMContentLoaded", () => {
     month: "long",
     day: "numeric",
   };
+  function buildQuickAccess() {
+    const popularCities = [
+      "berlin",
+      "london",
+      "newyork",
+      "tokyo",
+      "sydney",
+      "dubai",
+    ];
+    quickCities.innerHTML = "";
 
+    popularCities.forEach((cityId) => {
+      const city = cityCards[cityId];
+      if (city) {
+        const btn = document.createElement("button");
+        btn.className = "quick-city-btn";
+        btn.innerHTML = city.city.country + " " + city.city.name;
+        btn.addEventListener("click", () => openDetail(city.city));
+        quickCities.appendChild(btn);
+      }
+    });
+  }
   function applyFilter(query, skipAPISearch = false) {
     const term = query.toLowerCase().trim();
     container.innerHTML = "";
     favContainer.innerHTML = "";
 
     if (term === "") {
+      welcomeHero.classList.remove("hidden");
       if (favorites.size > 0) {
         favSection.style.display = "block";
         if (allTitle) allTitle.style.display = "none";
@@ -512,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       updateClocks();
       return;
     }
-
+    welcomeHero.classList.add("hidden");
     const matches = Object.values(cityCards).filter((item) =>
       item.card.dataset.search.includes(term),
     );
@@ -737,6 +763,20 @@ document.addEventListener("DOMContentLoaded", () => {
         detailTime.textContent = "N/A";
       }
     }
+    if (utcTime) {
+      try {
+        utcTime.textContent = t.toLocaleTimeString("de-DE", {
+          ...timeOptions,
+          timeZone: "UTC",
+        });
+        utcDate.textContent = t.toLocaleDateString("de-DE", {
+          ...dateOptions,
+          timeZone: "UTC",
+        });
+      } catch (e) {
+        utcTime.textContent = "N/A";
+      }
+    }
   }
 
   function openDetail(city) {
@@ -816,5 +856,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   applyFilter("");
+  buildQuickAccess();
   setInterval(updateClocks, 1000);
 });

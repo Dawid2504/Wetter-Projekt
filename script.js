@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusMessage = document.getElementById("status-message");
   const syncStatus = document.getElementById("sync-status");
 
-  // Detail-Overlay
   const overlay = document.getElementById("detail-overlay");
   const detailClose = document.getElementById("detail-close");
   const detailZone = document.getElementById("detail-zone");
@@ -18,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const detailOffset = document.getElementById("detail-offset");
   const detailStarBtn = document.getElementById("detail-star-btn");
 
-  // Wetter
   const weatherTemp = document.getElementById("weather-temp");
   const weatherDesc = document.getElementById("weather-desc");
   const weatherLoading = document.getElementById("weather-loading");
@@ -75,31 +73,22 @@ document.addEventListener("DOMContentLoaded", () => {
     99: "Schweres Gewitter",
   };
 
-  /* =========================================================
-     🕐 ZEIT-SYNCHRONISATION (Offset zur lokalen Uhr)
-     ========================================================= */
-  let timeOffset = 0; // ms Unterschied Server ↔ Lokal
-  let timeSynced = false;
-
+  let timeOffset = 0;
   async function syncTime() {
     const startLocal = Date.now();
     try {
-      // timeapi.io liefert UTC, CORS-freundlich, kein API-Key nötig
       const res = await fetch(
         "https://timeapi.io/api/time/current/zone?timeZone=UTC",
         { cache: "no-store" },
       );
       const data = await res.json();
       const endLocal = Date.now();
-      const latency = (endLocal - startLocal) / 2; // grobe Schätzung
-      // data.dateTime ist ISO-String, z. B. "2026-05-28T12:34:56.789"
+      const latency = (endLocal - startLocal) / 2;
       const serverTime = new Date(data.dateTime + "Z").getTime();
       timeOffset = serverTime - endLocal + latency;
-      timeSynced = true;
       syncStatus.textContent = `✅ Zeit synchronisiert (±${Math.round(latency)} ms)`;
       syncStatus.classList.add("ok");
     } catch (err) {
-      console.warn("⚠️ Zeit-Sync fehlgeschlagen, nutze lokale Zeit:", err);
       syncStatus.textContent = "⚠️ Offline-Modus (lokale Zeit)";
       syncStatus.classList.add("error");
     }
@@ -107,76 +96,348 @@ document.addEventListener("DOMContentLoaded", () => {
   function now() {
     return new Date(Date.now() + timeOffset);
   }
-
-  // Einmal pro Stunde neu synchronisieren
   syncTime();
   setInterval(syncTime, 60 * 60 * 1000);
 
-  /* =========================================================
-     ⭐ FAVORITEN (localStorage)
-     ========================================================= */
-  const FAV_KEY = "weltinfos_favorites";
-  const favorites = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]"));
+  // 🌍 NEU: Basis-Liste mit wichtigen Städten (Name + Flagge + Koordinaten)
+  const cityDatabase = [
+    {
+      id: "berlin",
+      name: "Berlin",
+      country: "🇩🇪",
+      timezone: "Europe/Berlin",
+      lat: 52.52,
+      lon: 13.4,
+    },
+    {
+      id: "munich",
+      name: "München",
+      country: "🇩🇪",
+      timezone: "Europe/Berlin",
+      lat: 48.13,
+      lon: 11.58,
+    },
+    {
+      id: "hamburg",
+      name: "Hamburg",
+      country: "🇩🇪",
+      timezone: "Europe/Berlin",
+      lat: 53.55,
+      lon: 9.99,
+    },
+    {
+      id: "frankfurt",
+      name: "Frankfurt",
+      country: "🇩🇪",
+      timezone: "Europe/Berlin",
+      lat: 50.11,
+      lon: 8.68,
+    },
+    {
+      id: "london",
+      name: "London",
+      country: "🇬🇧",
+      timezone: "Europe/London",
+      lat: 51.51,
+      lon: -0.13,
+    },
+    {
+      id: "paris",
+      name: "Paris",
+      country: "🇫🇷",
+      timezone: "Europe/Paris",
+      lat: 48.86,
+      lon: 2.35,
+    },
+    {
+      id: "rome",
+      name: "Rom",
+      country: "🇮🇹",
+      timezone: "Europe/Rome",
+      lat: 41.9,
+      lon: 12.5,
+    },
+    {
+      id: "madrid",
+      name: "Madrid",
+      country: "🇪🇸",
+      timezone: "Europe/Madrid",
+      lat: 40.42,
+      lon: -3.7,
+    },
+    {
+      id: "amsterdam",
+      name: "Amsterdam",
+      country: "🇳🇱",
+      timezone: "Europe/Amsterdam",
+      lat: 52.37,
+      lon: 4.9,
+    },
+    {
+      id: "vienna",
+      name: "Wien",
+      country: "🇦🇹",
+      timezone: "Europe/Vienna",
+      lat: 48.21,
+      lon: 16.37,
+    },
+    {
+      id: "zurich",
+      name: "Zürich",
+      country: "🇨🇭",
+      timezone: "Europe/Zurich",
+      lat: 47.37,
+      lon: 8.54,
+    },
+    {
+      id: "moscow",
+      name: "Moskau",
+      country: "🇷🇺",
+      timezone: "Europe/Moscow",
+      lat: 55.75,
+      lon: 37.62,
+    },
+    {
+      id: "istanbul",
+      name: "Istanbul",
+      country: "🇹🇷",
+      timezone: "Europe/Istanbul",
+      lat: 41.01,
+      lon: 28.98,
+    },
+    {
+      id: "newyork",
+      name: "New York",
+      country: "🇺🇸",
+      timezone: "America/New_York",
+      lat: 40.71,
+      lon: -74.01,
+    },
+    {
+      id: "losangeles",
+      name: "Los Angeles",
+      country: "🇺🇸",
+      timezone: "America/Los_Angeles",
+      lat: 34.05,
+      lon: -118.24,
+    },
+    {
+      id: "chicago",
+      name: "Chicago",
+      country: "🇺🇸",
+      timezone: "America/Chicago",
+      lat: 41.88,
+      lon: -87.63,
+    },
+    {
+      id: "toronto",
+      name: "Toronto",
+      country: "🇨🇦",
+      timezone: "America/Toronto",
+      lat: 43.65,
+      lon: -79.38,
+    },
+    {
+      id: "mexicocity",
+      name: "Mexiko-Stadt",
+      country: "🇲🇽",
+      timezone: "America/Mexico_City",
+      lat: 19.43,
+      lon: -99.13,
+    },
+    {
+      id: "saopaulo",
+      name: "São Paulo",
+      country: "🇧🇷",
+      timezone: "America/Sao_Paulo",
+      lat: -23.55,
+      lon: -46.63,
+    },
+    {
+      id: "buenosaires",
+      name: "Buenos Aires",
+      country: "🇦🇷",
+      timezone: "America/Argentina/Buenos_Aires",
+      lat: -34.6,
+      lon: -58.38,
+    },
+    {
+      id: "tokyo",
+      name: "Tokio",
+      country: "🇯🇵",
+      timezone: "Asia/Tokyo",
+      lat: 35.68,
+      lon: 139.69,
+    },
+    {
+      id: "beijing",
+      name: "Peking",
+      country: "🇨🇳",
+      timezone: "Asia/Shanghai",
+      lat: 39.9,
+      lon: 116.4,
+    },
+    {
+      id: "shanghai",
+      name: "Shanghai",
+      country: "🇨🇳",
+      timezone: "Asia/Shanghai",
+      lat: 31.23,
+      lon: 121.47,
+    },
+    {
+      id: "hongkong",
+      name: "Hong Kong",
+      country: "🇭🇰",
+      timezone: "Asia/Hong_Kong",
+      lat: 22.32,
+      lon: 114.17,
+    },
+    {
+      id: "singapore",
+      name: "Singapur",
+      country: "🇸🇬",
+      timezone: "Asia/Singapore",
+      lat: 1.35,
+      lon: 103.82,
+    },
+    {
+      id: "seoul",
+      name: "Seoul",
+      country: "🇰🇷",
+      timezone: "Asia/Seoul",
+      lat: 37.57,
+      lon: 126.98,
+    },
+    {
+      id: "mumbai",
+      name: "Mumbai",
+      country: "🇮🇳",
+      timezone: "Asia/Kolkata",
+      lat: 19.08,
+      lon: 72.88,
+    },
+    {
+      id: "delhi",
+      name: "Neu-Delhi",
+      country: "🇮🇳",
+      timezone: "Asia/Kolkata",
+      lat: 28.61,
+      lon: 77.21,
+    },
+    {
+      id: "bangkok",
+      name: "Bangkok",
+      country: "🇹🇭",
+      timezone: "Asia/Bangkok",
+      lat: 13.75,
+      lon: 100.5,
+    },
+    {
+      id: "dubai",
+      name: "Dubai",
+      country: "🇦🇪",
+      timezone: "Asia/Dubai",
+      lat: 25.2,
+      lon: 55.27,
+    },
+    {
+      id: "sydney",
+      name: "Sydney",
+      country: "🇦🇺",
+      timezone: "Australia/Sydney",
+      lat: -33.87,
+      lon: 151.21,
+    },
+    {
+      id: "melbourne",
+      name: "Melbourne",
+      country: "🇦🇺",
+      timezone: "Australia/Melbourne",
+      lat: -37.81,
+      lon: 144.96,
+    },
+    {
+      id: "auckland",
+      name: "Auckland",
+      country: "🇳🇿",
+      timezone: "Pacific/Auckland",
+      lat: -36.85,
+      lon: 174.76,
+    },
+    {
+      id: "cairo",
+      name: "Kairo",
+      country: "🇪🇬",
+      timezone: "Africa/Cairo",
+      lat: 30.04,
+      lon: 31.24,
+    },
+    {
+      id: "capetown",
+      name: "Kapstadt",
+      country: "🇿🇦",
+      timezone: "Africa/Johannesburg",
+      lat: -33.93,
+      lon: 18.42,
+    },
+    {
+      id: "lagos",
+      name: "Lagos",
+      country: "🇳🇬",
+      timezone: "Africa/Lagos",
+      lat: 6.52,
+      lon: 3.38,
+    },
+  ];
 
+  const FAV_KEY = "weltinfos_favorites_v2";
+  const favorites = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]"));
   function saveFavorites() {
     localStorage.setItem(FAV_KEY, JSON.stringify([...favorites]));
   }
-  function toggleFavorite(zone) {
-    if (favorites.has(zone)) favorites.delete(zone);
-    else favorites.add(zone);
+
+  function toggleFavorite(cityId) {
+    if (favorites.has(cityId)) favorites.delete(cityId);
+    else favorites.add(cityId);
     saveFavorites();
-
-    // Alle kleinen Stern-Buttons auf den Karten syncen
     document
-      .querySelectorAll(`.star-btn[data-zone="${CSS.escape(zone)}"]`)
+      .querySelectorAll(`.star-btn[data-city-id="${CSS.escape(cityId)}"]`)
       .forEach((b) => {
-        b.classList.toggle("active", favorites.has(zone));
-        b.textContent = favorites.has(zone) ? "★" : "☆";
+        b.classList.toggle("active", favorites.has(cityId));
+        b.textContent = favorites.has(cityId) ? "★" : "☆";
       });
-
-    // Falls wir gerade diese Zone im Detail offen haben → großen Stern auch updaten
-    if (zone === activeZone) updateDetailStar();
-
+    if (activeCity && activeCity.id === cityId) updateDetailStar();
     applyFilter(searchInput.value, currentShowAll);
   }
 
-  /* =========================================================
-     🌍 ZONEN LADEN & KARTEN BAUEN
-     ========================================================= */
-  const allZones =
-    typeof Intl.supportedValuesOf === "function"
-      ? Intl.supportedValuesOf("timeZone")
-      : ["Europe/Berlin", "America/New_York", "Asia/Tokyo", "UTC"];
-  console.log(`✅ ${allZones.length} Zeitzonen geladen`);
-
-  const zoneCards = {}; // zone -> {zone, card, timeEl, dateEl, starBtn}
-  let activeZone = null;
+  const cityCards = {};
+  let activeCity = null;
   let currentShowAll = false;
+  let searchTimeout = null;
 
-  function buildCard(zone) {
+  function buildCard(city) {
     const card = document.createElement("div");
     card.className = "clock-card";
     card.style.display = "none";
-
-    const searchText = zone.replace(/_/g, " ").toLowerCase();
-    card.dataset.search = searchText;
-    card.dataset.zone = zone;
+    card.dataset.search = `${city.name} ${city.country}`.toLowerCase();
+    card.dataset.cityId = city.id;
 
     const starBtn = document.createElement("button");
     starBtn.className = "star-btn";
-    starBtn.dataset.zone = zone;
+    starBtn.dataset.cityId = city.id;
     starBtn.setAttribute("aria-label", "Als Favorit markieren");
-    starBtn.textContent = favorites.has(zone) ? "★" : "☆";
-    if (favorites.has(zone)) starBtn.classList.add("active");
+    starBtn.textContent = favorites.has(city.id) ? "★" : "☆";
+    if (favorites.has(city.id)) starBtn.classList.add("active");
     starBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      toggleFavorite(zone); // ← nur noch "zone", kein "starBtn" mehr
+      toggleFavorite(city.id);
     });
 
     const zoneName = document.createElement("div");
     zoneName.className = "zone-name";
-    zoneName.textContent = zone.replace(/_/g, " ");
-    zoneName.title = zone;
+    zoneName.innerHTML = `<span class="city-flag">${city.country}</span> ${city.name}`;
+    zoneName.title = city.timezone;
 
     const timeEl = document.createElement("div");
     timeEl.className = "time";
@@ -187,18 +448,17 @@ document.addEventListener("DOMContentLoaded", () => {
     dateEl.textContent = "...";
 
     card.append(starBtn, zoneName, timeEl, dateEl);
-    card.addEventListener("click", () => openDetail(zone));
+    card.addEventListener("click", () => openDetail(city));
 
-    return { zone, card, timeEl, dateEl, starBtn };
+    return { city, card, timeEl, dateEl, starBtn };
   }
 
-  // Karten erzeugen und im "Pool" (clocks-container) versteckt halten
-  const fragment = document.createDocumentFragment();
-  allZones.forEach((zone) => {
-    const item = buildCard(zone);
-    zoneCards[zone] = item;
-    fragment.appendChild(item.card);
+  cityDatabase.forEach((city) => {
+    cityCards[city.id] = buildCard(city);
   });
+
+  const fragment = document.createDocumentFragment();
+  Object.values(cityCards).forEach((item) => fragment.appendChild(item.card));
   container.appendChild(fragment);
 
   const timeOptions = {
@@ -214,41 +474,32 @@ document.addEventListener("DOMContentLoaded", () => {
     day: "numeric",
   };
 
-  /* =========================================================
-     🔎 FILTER + FAVORITEN-ANZEIGE
-     ========================================================= */
   function applyFilter(query, showAllIfEmpty = false) {
     currentShowAll = showAllIfEmpty;
     const term = query.toLowerCase().trim();
 
-    // Container leeren (Karten bleiben im DOM, werden nur verschoben)
     container.innerHTML = "";
     favContainer.innerHTML = "";
 
-    /* ---------- 1) STARTSEITE: nur Favoriten ---------- */
     if (term === "" && !showAllIfEmpty) {
       if (favorites.size > 0) {
         favSection.style.display = "block";
         allTitle.style.display = "none";
-
-        allZones.forEach((zone) => {
-          const item = zoneCards[zone];
-          if (favorites.has(zone)) {
+        Object.values(cityCards).forEach((item) => {
+          if (favorites.has(item.city.id)) {
             favContainer.appendChild(item.card);
             item.card.style.display = "";
           } else {
             item.card.style.display = "none";
           }
         });
-
         statusMessage.textContent = `⭐ ${favorites.size} Favorit${favorites.size === 1 ? "" : "en"} – suche nach mehr oder klicke "Alle anzeigen".`;
       } else {
         favSection.style.display = "none";
         allTitle.style.display = "none";
-        // Alle Karten ausblenden
-        allZones.forEach((z) => {
-          zoneCards[z].card.style.display = "none";
-        });
+        Object.values(cityCards).forEach(
+          (item) => (item.card.style.display = "none"),
+        );
         statusMessage.textContent =
           'Tippe etwas ein oder klicke auf "Alle anzeigen".';
       }
@@ -256,21 +507,18 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    /* ---------- 2) SUCHE oder "ALLE ANZEIGEN" ---------- */
-    const matches = allZones
-      .map((zone) => zoneCards[zone])
-      .filter((item) =>
-        term === "" ? showAllIfEmpty : item.card.dataset.search.includes(term),
-      );
+    const matches = Object.values(cityCards).filter((item) =>
+      term === "" ? showAllIfEmpty : item.card.dataset.search.includes(term),
+    );
 
-    const favMatches = matches.filter((m) => favorites.has(m.zone));
-    const restMatches = matches.filter((m) => !favorites.has(m.zone));
+    const favMatches = matches.filter((m) => favorites.has(m.city.id));
+    const restMatches = matches.filter((m) => !favorites.has(m.city.id));
 
     favSection.style.display = "none";
 
     if (matches.length === 0) {
       allTitle.style.display = "none";
-      statusMessage.textContent = `Keine Zeitzonen für "${query}" gefunden.`;
+      statusMessage.textContent = `Keine Städte lokal gefunden. Suche weltweit...`;
     } else {
       allTitle.style.display = term === "" && showAllIfEmpty ? "block" : "none";
       [...favMatches, ...restMatches].forEach((m) => {
@@ -278,43 +526,97 @@ document.addEventListener("DOMContentLoaded", () => {
         m.card.style.display = "";
       });
       statusMessage.textContent = term
-        ? `${matches.length} Zeitzonen gefunden${favMatches.length ? ` (davon ⭐ ${favMatches.length})` : ""}:`
-        : `Alle ${matches.length} Zeitzonen:`;
+        ? `${matches.length} Städte gefunden${favMatches.length ? ` (davon ⭐ ${favMatches.length})` : ""}:`
+        : `Alle ${matches.length} Städte:`;
     }
 
-    // Nicht sichtbare Karten explizit ausblenden
-    allZones.forEach((zone) => {
-      const item = zoneCards[zone];
+    Object.values(cityCards).forEach((item) => {
       if (!matches.includes(item)) item.card.style.display = "none";
     });
 
     updateClocks();
+
+    // 🔥 NEU: API-Suche mit 600ms Verzögerung (Debouncing)
+    if (term.length >= 2) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => searchCityAPI(term), 600);
+    }
   }
 
-  /* =========================================================
-     🌤️ WETTER (unverändert, nur Formatierung)
-     ========================================================= */
+  // 🌐 NEU: Open-Meteo API-Suche für beliebige Städte weltweit
+  async function searchCityAPI(query) {
+    try {
+      statusMessage.textContent = `🔍 Suche "${query}" weltweit...`;
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=de&format=json`,
+      );
+      const data = await res.json();
+
+      if (data.results && data.results.length > 0) {
+        let newCitiesAdded = 0;
+        data.results.forEach((result) => {
+          const existingId =
+            `${result.name.toLowerCase()}_${result.country_code || "x"}`.replace(
+              /[^a-z0-9]/g,
+              "_",
+            );
+          if (!cityCards[existingId]) {
+            const newCity = {
+              id: existingId,
+              name: result.name,
+              country: getFlagEmoji(result.country_code) || "🌍",
+              timezone: result.timezone,
+              lat: result.latitude,
+              lon: result.longitude,
+            };
+            cityDatabase.push(newCity);
+            cityCards[newCity.id] = buildCard(newCity);
+            container.appendChild(cityCards[newCity.id].card);
+            newCitiesAdded++;
+          }
+        });
+
+        applyFilter(query, false);
+
+        if (newCitiesAdded > 0) {
+          statusMessage.textContent = `✅ ${newCitiesAdded} neue Stadt${newCitiesAdded === 1 ? "" : "e"} weltweit gefunden!`;
+        }
+      } else {
+        statusMessage.textContent = `Keine Städte weltweit für "${query}" gefunden.`;
+      }
+    } catch (error) {
+      console.warn("API-Suche fehlgeschlagen:", error);
+      statusMessage.textContent = `⚠️ Online-Suche nicht möglich.`;
+    }
+  }
+
+  // 🏳️ NEU: Erzeugt automatisch Flaggen-Emojis aus dem Ländercode (z.B. "DE" -> 🇩🇪)
+  function getFlagEmoji(countryCode) {
+    if (!countryCode || countryCode.length !== 2) return "🌍";
+    const codePoints = countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => 127397 + char.charCodeAt());
+    return String.fromCodePoint(...codePoints);
+  }
+
   const weatherCache = {};
-  async function getWeatherForZone(zone) {
+
+  // ⚡ NEU: Wetter nutzt jetzt DIREKT die Koordinaten (kein Geocoding mehr nötig!)
+  async function getWeatherForCity(city) {
     weatherLoading.style.display = "block";
     weatherInfo.style.display = "none";
     weatherError.style.display = "none";
     forecastContainer.style.display = "none";
-    if (weatherCache[zone]) {
-      updateWeatherUI(weatherCache[zone]);
-      renderForecast(weatherCache[zone].forecast);
+
+    if (weatherCache[city.id]) {
+      updateWeatherUI(weatherCache[city.id]);
+      renderForecast(weatherCache[city.id].forecast);
       return;
     }
-    try {
-      const locationName = zone.split("/").pop().replace(/_/g, " ");
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationName)}&count=1&language=de&format=json`,
-      );
-      const geoData = await geoRes.json();
-      if (!geoData.results?.length) throw new Error("Standort nicht gefunden");
-      const { latitude, longitude, name } = geoData.results[0];
 
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+    try {
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
       const weatherRes = await fetch(weatherUrl);
       const weatherData = await weatherRes.json();
       const current = weatherData.current_weather;
@@ -324,7 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
         temp: Math.round(current.temperature),
         desc: WMO_CODES[current.weathercode] || "Unbekannt",
         icon: WMO_ICONS[current.weathercode] || "🌡️",
-        location: name,
+        location: city.name,
         forecast: daily.time.slice(0, 7).map((date, i) => ({
           day: new Date(date).toLocaleDateString("de-DE", { weekday: "short" }),
           icon: WMO_ICONS[daily.weathercode[i]] || "🌡️",
@@ -332,15 +634,16 @@ document.addEventListener("DOMContentLoaded", () => {
           min: Math.round(daily.temperature_2m_min[i]),
         })),
       };
-      weatherCache[zone] = weather;
+      weatherCache[city.id] = weather;
       updateWeatherUI(weather);
       renderForecast(weather.forecast);
     } catch (error) {
-      console.warn(`⚠️ Wetter für ${zone} fehlgeschlagen:`, error);
+      console.warn(`⚠️ Wetter für ${city.name} fehlgeschlagen:`, error);
       weatherLoading.style.display = "none";
       weatherError.style.display = "block";
     }
   }
+
   function updateWeatherUI(w) {
     weatherLoading.style.display = "none";
     weatherInfo.style.display = "flex";
@@ -348,57 +651,52 @@ document.addEventListener("DOMContentLoaded", () => {
     weatherTemp.textContent = `${w.temp}°C`;
     weatherDesc.textContent = `${w.desc} (${w.location})`;
   }
+
   function renderForecast(forecast) {
     forecastScroll.innerHTML = "";
     forecast.forEach((day) => {
       const el = document.createElement("div");
       el.className = "forecast-day";
-      el.innerHTML = `
-        <div class="forecast-day-name">${day.day}</div>
-        <div class="forecast-icon">${day.icon}</div>
-        <div class="forecast-temps">
-          <span>${day.max}°</span><span>/ ${day.min}°</span>
-        </div>`;
+      el.innerHTML = `<div class="forecast-day-name">${day.day}</div><div class="forecast-icon">${day.icon}</div><div class="forecast-temps"><span>${day.max}°</span><span>/ ${day.min}°</span></div>`;
       forecastScroll.appendChild(el);
     });
     forecastContainer.style.display = "block";
   }
 
-  /* =========================================================
-     ⏰ UHR-AKTUALISIERUNG (nutzt now() mit Offset!)
-     ========================================================= */
   function updateClocks() {
     const t = now();
-    // Nur sichtbare Karten updaten
-    for (const zone in zoneCards) {
-      const item = zoneCards[zone];
-      if (item.card.style.display === "none" && item.zone !== activeZone)
+    for (const id in cityCards) {
+      const item = cityCards[id];
+      if (
+        item.card.style.display === "none" &&
+        (!activeCity || activeCity.id !== id)
+      )
         continue;
       try {
         item.timeEl.textContent = t.toLocaleTimeString("de-DE", {
           ...timeOptions,
-          timeZone: item.zone,
+          timeZone: item.city.timezone,
         });
         item.dateEl.textContent = t.toLocaleDateString("de-DE", {
           ...dateOptions,
-          timeZone: item.zone,
+          timeZone: item.city.timezone,
         });
       } catch {
         item.timeEl.textContent = "N/A";
       }
     }
-    if (activeZone) {
+    if (activeCity) {
       try {
         detailTime.textContent = t.toLocaleTimeString("de-DE", {
           ...timeOptions,
-          timeZone: activeZone,
+          timeZone: activeCity.timezone,
         });
         detailDate.textContent = t.toLocaleDateString("de-DE", {
           ...dateOptions,
-          timeZone: activeZone,
+          timeZone: activeCity.timezone,
         });
         const fmt = new Intl.DateTimeFormat("en-US", {
-          timeZone: activeZone,
+          timeZone: activeCity.timezone,
           timeZoneName: "shortOffset",
         });
         const tzPart = fmt
@@ -412,79 +710,80 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* =========================================================
-     🖼️ DETAIL-OVERLAY
-     ========================================================= */
-  function openDetail(zone) {
-    activeZone = zone;
-    detailZone.textContent = zone.replace(/_/g, " ");
+  function openDetail(city) {
+    activeCity = city;
+    detailZone.textContent = `${city.country} ${city.name}`;
     overlay.classList.add("active");
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
-    updateDetailStar(); // ← NEU
+    updateDetailStar();
     updateClocks();
-    getWeatherForZone(zone);
+    getWeatherForCity(city);
   }
 
   function closeDetail() {
     overlay.classList.remove("active");
     overlay.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
-    activeZone = null;
+    activeCity = null;
   }
+
   function updateDetailStar() {
-    if (!activeZone) return;
-    const isFav = favorites.has(activeZone);
+    if (!activeCity) return;
+    const isFav = favorites.has(activeCity.id);
     detailStarBtn.classList.toggle("active", isFav);
     detailStarBtn.textContent = isFav ? "★" : "☆";
   }
 
   detailStarBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (activeZone) {
-      toggleFavorite(activeZone);
-    }
+    if (activeCity) toggleFavorite(activeCity.id);
   });
+
   detailClose.addEventListener("click", (e) => {
     e.stopPropagation();
     closeDetail();
   });
+
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeDetail();
   });
 
-  /* =========================================================
-     🧹 SEARCH-UI
-     ========================================================= */
   function clearSearch() {
     searchInput.value = "";
     clearBtn.classList.remove("visible");
     applyFilter("", false);
     searchInput.focus();
   }
+
   searchInput.addEventListener("input", (e) => {
     clearBtn.classList.toggle("visible", e.target.value.length > 0);
     applyFilter(e.target.value, false);
   });
+
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       searchInput.blur();
     }
     if (e.key === "Escape") {
-      activeZone ? closeDetail() : clearSearch();
+      activeCity ? closeDetail() : clearSearch();
     }
   });
+
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && activeZone) closeDetail();
+    if (e.key === "Escape" && activeCity) closeDetail();
   });
+
   clearBtn.addEventListener("click", clearSearch);
+
   showAllBtn.addEventListener("click", () => {
     searchInput.value = "";
     clearBtn.classList.remove("visible");
     applyFilter("", true);
     searchInput.blur();
   });
+
   document.addEventListener("click", (e) => {
     if (
       !e.target.closest(".search-wrapper") &&
@@ -494,9 +793,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  /* =========================================================
-     🚀 START
-     ========================================================= */
   applyFilter("", false);
   setInterval(updateClocks, 1000);
 });

@@ -1,4 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // --- ANPASSUNG 1: WETTER-SYMBOLE ENTFERNEN & SUCHLEISTE IN DEN STARTSCREEN SETZEN ---
+  const searchWrapper = document.querySelector(".search-wrapper");
+  const weatherOverview = document.querySelector(".welcome-weather-overview");
+  if (searchWrapper && weatherOverview) {
+    weatherOverview.innerHTML = ""; // Löscht Sonnig, Regen, Bewölkt
+    weatherOverview.appendChild(searchWrapper); // Setzt die Suchleiste an diese Stelle
+  }
   const container = document.getElementById("clocks-container");
   const favContainer = document.getElementById("favorites-container");
   const favSection = document.getElementById("favorites-section");
@@ -629,6 +636,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Filter anwenden
   function applyFilter(query, skipAPISearch = false) {
     const term = query.toLowerCase().trim();
+    // --- ANPASSUNG 2: SUCHLEISTE BEIM SUCHEN WIEDER NACH OBEN HOLEN ---
+    const sWrapper = document.querySelector(".search-wrapper");
+    if (term === "") {
+      const wOverview = document.querySelector(".welcome-weather-overview");
+      if (sWrapper && wOverview) wOverview.appendChild(sWrapper);
+    } else {
+      if (sWrapper && welcomeHero)
+        welcomeHero.parentNode.insertBefore(sWrapper, welcomeHero);
+    }
     container.innerHTML = "";
     favContainer.innerHTML = "";
 

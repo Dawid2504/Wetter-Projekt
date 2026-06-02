@@ -13,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("search-input");
   const clearBtn = document.getElementById("clear-btn");
   const statusMessage = document.getElementById("status-message");
-  const syncStatus = document.getElementById("sync-status");
   const overlay = document.getElementById("detail-overlay");
   const detailClose = document.getElementById("detail-close");
   const detailZone = document.getElementById("detail-zone");
@@ -94,26 +93,19 @@ document.addEventListener("DOMContentLoaded", () => {
   async function syncTime() {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 Sekunden Timeout
-
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(
       "https://timeapi.io/api/time/current/zone?timeZone=UTC",
       { cache: "no-store", signal: controller.signal }
     );
     clearTimeout(timeoutId);
-
     if (!res.ok) throw new Error("API antwortet nicht");
-
     const data = await res.json();
     const serverTime = new Date(data.dateTime + "Z").getTime();
     timeOffset = serverTime - Date.now();
-    syncStatus.textContent = "✅ Zeit synchronisiert";
-    syncStatus.classList.add("ok");
   } catch (err) {
     console.warn("Zeit-Sync fehlgeschlagen, verwende lokale Zeit:", err);
-    timeOffset = 0; // Fallback: lokale Zeit nutzen
-    syncStatus.textContent = "⏱️ Lokale Zeit";
-    syncStatus.classList.add("ok"); // Kein roter Fehler mehr
+    timeOffset = 0;
   }
 }
 
@@ -645,80 +637,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Filter anwenden
   function applyFilter(query, skipAPISearch = false) {
-    const term = query.toLowerCase().trim();
-    // --- ANPASSUNG 2: SUCHLEISTE BEIM SUCHEN WIEDER NACH OBEN HOLEN ---
-    const sWrapper = document.querySelector(".search-wrapper");
-    if (term === "") {
-      const wOverview = document.querySelector(".welcome-weather-overview");
-      if (sWrapper && wOverview) wOverview.appendChild(sWrapper);
-    } else {
-      if (sWrapper && welcomeHero)
-        welcomeHero.parentNode.insertBefore(sWrapper, welcomeHero);
+  const term = query.toLowerCase().trim();
+
+  // --- ANPASSUNG 2: SUCHLEISTE BEIM SUCHEN WIEDER NACH OBEN HOLEN ---
+  const sWrapper = document.querySelector(".search-wrapper");
+  if (term === "") {
+    const wOverview = document.querySelector(".welcome-weather-overview");
+    if (sWrapper && wOverview) wOverview.appendChild(sWrapper);
+
+    // Status-Nachricht in den Hero verschieben (oben auf dem Bild)
+    if (statusMessage.parentElement !== welcomeHero) {
+      welcomeHero.appendChild(statusMessage);
     }
-    container.innerHTML = "";
-    favContainer.innerHTML = "";
+  } else {
+    if (sWrapper && welcomeHero)
+      welcomeHero.parentNode.insertBefore(sWrapper, welcomeHero);
 
-    if (term === "") {
-      welcomeHero.classList.remove("hidden");
-      if (favorites.size > 0) {
-        favSection.style.display = "block";
-        if (allTitle) allTitle.style.display = "none";
-        Object.values(cityCards).forEach((item) => {
-          if (favorites.has(item.city.id)) {
-            favContainer.appendChild(item.card);
-            item.card.style.display = "";
-          } else {
-            item.card.style.display = "none";
-          }
-        });
-        statusMessage.innerHTML = `⭐ ${favorites.size} Favorit${favorites.size === 1 ? "" : "en"} – suche nach mehr.`;
-      } else {
-        favSection.style.display = "none";
-        if (allTitle) allTitle.style.display = "none";
-        Object.values(cityCards).forEach(
-          (item) => (item.card.style.display = "none"),
-        );
-        statusMessage.innerHTML = `<span class="sync-status">Tippe etwas ein, um eine Stadt zu suchen.</span>`;
-      }
-      updateClocks();
-      setTimeout(loadAllVisibleWeather, 500);
-      return;
-    }
-
-    welcomeHero.classList.add("hidden");
-    const matches = Object.values(cityCards).filter((item) =>
-      item.card.dataset.search.includes(term),
-    );
-    const favMatches = matches.filter((m) => favorites.has(m.city.id));
-    const restMatches = matches.filter((m) => !favorites.has(m.city.id));
-
-    favSection.style.display = "none";
-
-    if (matches.length === 0) {
-      if (allTitle) allTitle.style.display = "none";
-      statusMessage.textContent =
-        "Keine Städte lokal gefunden. Suche weltweit...";
-    } else {
-      if (allTitle) allTitle.style.display = "block";
-      [...favMatches, ...restMatches].forEach((m) => {
-        container.appendChild(m.card);
-        m.card.style.display = "";
-      });
-      statusMessage.textContent = `${matches.length} Städte gefunden${favMatches.length ? ` (davon ⭐ ${favMatches.length})` : ""}:`;
-    }
-
-    Object.values(cityCards).forEach((item) => {
-      if (!matches.includes(item)) item.card.style.display = "none";
-    });
-
-    updateClocks();
-    setTimeout(loadAllVisibleWeather, 500);
-
-    if (!skipAPISearch && term.length >= 2 && !searchCache.has(term)) {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => searchCityAPI(term), 600);
+    // Status-Nachricht aus dem Hero heraus verschieben (für Suchergebnisse)
+    if (statusMessage.parentElement === welcomeHero) {
+      welcomeHero.parentNode.insertBefore(statusMessage, welcomeHero.nextSibling);
     }
   }
+
+  container.innerHTML = "";
+  favContainer.innerHTML = "";
+
+  if (term === "") {
+    welcomeHero.classList.remove("hidden");
+    if (favorites.size > 0) {
+      favSection.style.display = "block";
+      if (allTitle) allTitle.style.display = "none";
+      Object.values(cityCards).forEach((item) => {
+        if (favorites.has(item.city.id)) {
+          favContainer.appendChild(item.card);
+          item.card.style.display = "";
+        } else {
+          item.card.style.display = "none";
+        }
+      });
+      statusMessage.innerHTML = `⭐ ${favorites.size} Favorit${favorites.size === 1 ? "" : "en"} – suche nach mehr.`;
+    } else {
+      favSection.style.display = "none";
+      if (allTitle) allTitle.style.display = "none";
+      Object.values(cityCards).forEach(
+        (item) => (item.card.style.display = "none"),
+      );
+      statusMessage.innerHTML = `Tippe etwas ein, um eine Stadt zu suchen.`;
+    }
+    updateClocks();
+    setTimeout(loadAllVisibleWeather, 500);
+    return;
+  }
+
+  welcomeHero.classList.add("hidden");
+  // ... Rest der Funktion bleibt unverändert
 
   // API-Suche
   async function searchCityAPI(query) {

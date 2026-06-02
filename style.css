@@ -99,24 +99,22 @@ header p {
   min-height: 30px;
 }
 
-.sync-status {
-  display: inline-block;
-  padding: 4px 12px;
-  font-size: 0.8rem;
+.status {
+  text-align: center;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
-  border: 1px solid var(--border);
+  margin: 20px 0;
+  font-size: 0.95rem;
+  min-height: 30px;
 }
 
-.sync-status.ok {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.sync-status.error {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+/* NEU: Status im Hero oben positionieren */
+.welcome-hero .status {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  margin: 0;
 }
 
 /* ===== GRID ===== */

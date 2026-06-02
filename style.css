@@ -99,14 +99,6 @@ header p {
   min-height: 30px;
 }
 
-.status {
-  text-align: center;
-  color: var(--text-secondary);
-  margin: 20px 0;
-  font-size: 0.95rem;
-  min-height: 30px;
-}
-
 /* NEU: Status im Hero oben positionieren */
 .welcome-hero .status {
   position: absolute;
@@ -430,7 +422,7 @@ header p {
 .welcome-hero.hidden {
   opacity: 0;
   max-height: 0;
-  min-height: 0 !important; /* Verhindert die riesige leere Fläche */
+  min-height: 0 !important;
   height: 0 !important;
   padding: 0;
   margin: 0;
@@ -450,10 +442,9 @@ header p {
   overflow-y: auto;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
   transition:
     opacity 0.3s ease,
-    background-image 0.8s ease-in-out; /* Sanfter Bildübergang */
+    background-image 0.8s ease-in-out;
 }
 
 .detail-overlay.active {
@@ -752,31 +743,25 @@ header p {
   .clocks-grid {
     grid-template-columns: 1fr;
   }
-
   .welcome-hero {
     min-height: 50vh;
     border-radius: 12px;
   }
-
   .welcome-title {
     font-size: 1.8rem;
   }
-
   .weather-stat {
     padding: 15px 20px;
     min-width: 100px;
   }
-
   .detail-close,
   .detail-star-btn {
     position: absolute;
     top: 15px;
   }
-
   .detail-time {
     font-size: 2.5rem;
   }
-
   .forecast-day {
     flex: 0 0 80px;
   }

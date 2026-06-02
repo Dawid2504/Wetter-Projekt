@@ -8,41 +8,41 @@
   </head>
   <body>
     <div class="container">
-      <div class="search-wrapper">
-        <input type="text" id="search-input" placeholder="🔍 Stadt suchen..." />
-        <button id="clear-btn" class="clear-btn">✕</button>
-      </div>
-
-      <div id="status-message" class="status">
-        <span id="sync-status" class="sync-status"
-          >⏳ Zeit wird synchronisiert...</span
-        >
-      </div>
-
-      <!-- WELCOME HERO MIT WETTER -->
-      <div id="welcome-hero" class="welcome-hero">
+      <!-- WELCOME HERO -->
+      <section id="welcome-hero" class="welcome-hero">
         <div class="welcome-overlay"></div>
         <div class="welcome-content">
-          <header>
-          </header>
+          <div id="status-message" class="status">
+            ⏳ Zeit wird synchronisiert...
+          </div>
           <h2 class="welcome-title">Wetter weltweit</h2>
           <p class="welcome-subtitle">Aktuelle Vorhersagen & 7-Tage-Trends</p>
 
           <div class="welcome-weather-overview">
+            <!-- Search Wrapper gets moved here via JS -->
+            <div class="search-wrapper">
+              <input
+                type="text"
+                id="search-input"
+                placeholder="Stadt suchen..."
+              />
+              <button id="clear-btn" class="clear-btn">✕</button>
+            </div>
+
             <div class="weather-stat">
               <div class="weather-stat-icon">☀️</div>
               <div class="weather-stat-label">Sonnig</div>
-              <div id="stat-sunny" class="weather-stat-value">0</div>
+              <div class="weather-stat-value" id="stat-sunny">0</div>
             </div>
             <div class="weather-stat">
               <div class="weather-stat-icon">🌧️</div>
               <div class="weather-stat-label">Regen</div>
-              <div id="stat-rain" class="weather-stat-value">0</div>
+              <div class="weather-stat-value" id="stat-rain">0</div>
             </div>
             <div class="weather-stat">
               <div class="weather-stat-icon">⛅</div>
               <div class="weather-stat-label">Bewölkt</div>
-              <div id="stat-cloudy" class="weather-stat-value">0</div>
+              <div class="weather-stat-value" id="stat-cloudy">0</div>
             </div>
           </div>
 
@@ -55,70 +55,70 @@
             💡 Tipp: Klicke auf eine Stadt für Details & 7-Tage-Vorhersage!
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- FAVORITEN -->
-      <div
+      <!-- FAVORITES SECTION -->
+      <section
         id="favorites-section"
         class="favorites-section"
         style="display: none"
       >
-        <h3 id="favorites-title" class="section-title">⭐ Deine Favoriten</h3>
+        <h3 class="section-title">⭐ Deine Favoriten</h3>
         <div id="favorites-container" class="clocks-grid"></div>
-      </div>
+      </section>
 
-      <!-- ALLE STÄDTE -->
+      <!-- ALL CITIES TITLE -->
       <h3 id="all-title" class="section-title" style="display: none">
         🌐 Alle Städte
       </h3>
+
+      <!-- CLOCKS CONTAINER -->
       <div id="clocks-container" class="clocks-grid"></div>
+    </div>
 
-      <!-- DETAIL-OVERLAY -->
-      <div id="detail-overlay" class="detail-overlay" aria-hidden="true">
-        <button id="detail-close" class="detail-close">← Zurück</button>
-        <button id="detail-star-btn" class="detail-star-btn">☆</button>
+    <!-- DETAIL OVERLAY -->
+    <div id="detail-overlay" class="detail-overlay">
+      <button id="detail-close" class="detail-close">← Zurück</button>
+      <button id="detail-star-btn" class="detail-star-btn">☆</button>
 
-        <div class="detail-content">
-          <div id="detail-zone" class="detail-zone"></div>
-          <div id="detail-time" class="detail-time">--:--:--</div>
-          <div id="detail-date" class="detail-date"></div>
-          <div id="detail-offset" class="detail-offset"></div>
+      <div class="detail-content">
+        <div id="detail-zone" class="detail-zone"></div>
+        <div id="detail-time" class="detail-time">--:--:--</div>
+        <div id="detail-date" class="detail-date"></div>
+        <div id="detail-offset" class="detail-offset"></div>
 
-          <div id="weather-section" class="detail-weather">
-            <div id="weather-loading" class="weather-loading">
-              🌤️ Wetter wird geladen...
-            </div>
-            <div id="weather-error" class="weather-error" style="display: none">
-              Wetter nicht verfügbar
-            </div>
-            <div id="weather-info" class="weather-info" style="display: none">
-              <span id="weather-icon" class="weather-icon"></span>
-              <span id="weather-temp" class="weather-temp"></span>
-              <span id="weather-desc" class="weather-desc"></span>
-            </div>
+        <div class="detail-weather">
+          <div id="weather-loading" class="weather-loading">
+            🌤️ Wetter wird geladen...
           </div>
-
-          <!-- 7-TAGE VORHERSAGE -->
-          <div
-            id="forecast-container"
-            class="forecast-container"
-            style="display: none"
-          >
-            <div class="forecast-title">📅 7-Tage-Vorschau</div>
-            <div id="forecast-scroll" class="forecast-scroll"></div>
+          <div id="weather-error" class="weather-error" style="display: none">
+            Wetter nicht verfügbar
           </div>
-
-          <!-- STUNDENVORHERSAGE -->
-          <div
-            id="hourly-container"
-            class="hourly-container"
-            style="display: none"
-          >
-            <div id="hourly-title" class="hourly-title">
-              ⏱️ Stündlicher Verlauf
-            </div>
-            <div id="hourly-scroll" class="hourly-scroll"></div>
+          <div id="weather-info" class="weather-info" style="display: none">
+            <div id="weather-icon" class="weather-icon"></div>
+            <div id="weather-temp" class="weather-temp"></div>
+            <div id="weather-desc" class="weather-desc"></div>
           </div>
+        </div>
+
+        <div
+          id="forecast-container"
+          class="forecast-container"
+          style="display: none"
+        >
+          <div class="forecast-title">📅 7-Tage-Vorschau</div>
+          <div id="forecast-scroll" class="forecast-scroll"></div>
+        </div>
+
+        <div
+          id="hourly-container"
+          class="hourly-container"
+          style="display: none"
+        >
+          <div id="hourly-title" class="hourly-title">
+            ⏱️ Stündlicher Verlauf
+          </div>
+          <div id="hourly-scroll" class="hourly-scroll"></div>
         </div>
       </div>
     </div>

@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function applyDetailBackground(code) {
     const bgUrl = getWeatherBackground(code);
-    overlay.style.backgroundImage = `linear-gradient(rgba(18, 18, 18, 0.85), rgba(18, 18, 18, 0.95)), url('${bgUrl}')`;
+    overlay.style.backgroundImage = `linear-gradient(rgba(18, 18, 18, 0.6), rgba(18, 18, 18, 0.75)), url('${bgUrl}')`;
     overlay.style.backgroundSize = "cover";
     overlay.style.backgroundPosition = "center";
   }

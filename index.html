@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weltinfos - Wetter weltweit</title>
+    <!-- Leaflet CSS & JS für die Karte -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -115,6 +121,26 @@
           class="hourly-container"
           style="display: none"
         >
+          <div id="radar-section" class="radar-section" style="display: none">
+            <h3 class="radar-title">🛰️ Live Regenradar (Letzte 2 Stunden)</h3>
+            <div id="radar-map"></div>
+            <div class="radar-controls">
+              <button id="radar-prev" class="radar-btn" title="Vorheriges Bild">
+                ⏮️
+              </button>
+              <button
+                id="radar-play"
+                class="radar-btn"
+                title="Animation starten"
+              >
+                ▶️
+              </button>
+              <button id="radar-next" class="radar-btn" title="Nächstes Bild">
+                ⏭️
+              </button>
+              <span id="radar-time" class="radar-time-label">--:--</span>
+            </div>
+          </div>
           <div id="hourly-title" class="hourly-title">
             ⏱️ Stündlicher Verlauf
           </div>

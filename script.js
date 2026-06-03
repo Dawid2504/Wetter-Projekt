@@ -863,7 +863,126 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
+  // === NEU: RAINVIEWER RADAR LOGIK ===
+  let radarMap = null;
+  let radarFrames = [];
+  let radarCurrentPos = 0;
+  let radarTimer = null;
+  let radarLayers = {};
+  let radarHost = "";
 
+  async function initRadar(city) {
+  const radarSection = document.getElementById("radar-section");
+  if (!radarSection) return;
+  
+  radarSection.style.display = "block";
+  
+  // Karte initialisieren (nur beim ersten Mal)
+  if (!radarMap) {
+    radarMap = L.map('radar-map', {
+      center: [city.lat, city.lon],
+      zoom: 6,
+      zoomControl: true
+    });
+    
+    // CartoDB Dark Matter - perfekt für Dark Mode!
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(radarMap);
+    
+    setTimeout(() => radarMap.invalidateSize(), 100);
+  } else {
+    radarMap.setView([city.lat, city.lon], 6);
+    clearRadarLayers();
+  }
+  
+  await loadRainViewerData();
+}
+
+  async function loadRainViewerData() {
+    try {
+      const res = await fetch(
+        "https://api.rainviewer.com/public/weather-maps.json",
+      );
+      const data = await res.json();
+
+      radarHost = data.host;
+      radarFrames = data.radar.past; // Die letzten 2 Stunden
+
+      // Starte beim aktuellsten Frame (letztes Element im Array)
+      radarCurrentPos = radarFrames.length - 1;
+      showRadarFrame(radarCurrentPos);
+    } catch (err) {
+      console.warn("RainViewer API Fehler:", err);
+    }
+  }
+
+  function showRadarFrame(pos) {
+    if (!radarFrames.length) return;
+    if (pos < 0) pos = radarFrames.length - 1;
+    if (pos >= radarFrames.length) pos = 0;
+
+    radarCurrentPos = pos;
+    const frame = radarFrames[pos];
+
+    const timeLabel = document.getElementById("radar-time");
+    if (timeLabel) {
+      timeLabel.textContent = new Date(frame.time * 1000).toLocaleTimeString(
+        "de-DE",
+        { hour: "2-digit", minute: "2-digit" },
+      );
+    }
+
+    // Alle alten Layer unsichtbar machen
+    Object.values(radarLayers).forEach((layer) => {
+      if (layer) layer.setOpacity(0);
+    });
+
+    // Neuen Layer erstellen oder aus Cache holen
+    if (!radarLayers[pos]) {
+      const tileUrl = `${radarHost}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+      const layer = L.tileLayer(tileUrl, {
+        opacity: 0.7, // Leicht transparent, damit man die Karte darunter sieht
+        maxZoom: 10,
+        zIndex: 10,
+      });
+      radarLayers[pos] = layer;
+      layer.addTo(radarMap);
+    } else {
+      radarLayers[pos].setOpacity(0.7);
+    }
+  }
+
+  function clearRadarLayers() {
+    Object.values(radarLayers).forEach((layer) => {
+      if (layer && radarMap && radarMap.hasLayer(layer))
+        radarMap.removeLayer(layer);
+    });
+    radarLayers = {};
+    if (radarTimer) {
+      clearInterval(radarTimer);
+      radarTimer = null;
+      const playBtn = document.getElementById("radar-play");
+      if (playBtn) playBtn.textContent = "▶️";
+    }
+  }
+
+  function toggleRadarPlay() {
+    const playBtn = document.getElementById("radar-play");
+    if (!playBtn) return;
+    if (radarTimer) {
+      clearInterval(radarTimer);
+      radarTimer = null;
+      playBtn.textContent = "▶️";
+    } else {
+      playBtn.textContent = "⏸️";
+      radarTimer = setInterval(() => {
+        showRadarFrame(radarCurrentPos + 1);
+      }, 600); // Alle 600ms das nächste Bild
+    }
+  }
   function openDetail(city) {
     activeCity = city;
     detailZone.textContent = city.country + " " + city.name;
@@ -872,6 +991,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateDetailStar();
     updateClocks();
     getWeatherForCity(city);
+    initRadar(city);
   }
 
   function closeDetail() {
@@ -880,6 +1000,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.style.overflow = "";
     activeCity = null;
     hourlyContainer.style.display = "none";
+    const radarSection = document.getElementById("radar-section");
+    if (radarSection) radarSection.style.display = "none";
+    clearRadarLayers();
   }
 
   function updateDetailStar() {
@@ -1104,4 +1227,20 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("theme", isLight ? "light" : "dark");
     themeBtn.textContent = isLight ? "☀️" : "🌙";
   });
+  // Radar Button Listener
+  const radarPrevBtn = document.getElementById("radar-prev");
+  const radarNextBtn = document.getElementById("radar-next");
+  const radarPlayBtn = document.getElementById("radar-play");
+
+  if (radarPrevBtn)
+    radarPrevBtn.addEventListener("click", () => {
+      if (radarTimer) toggleRadarPlay();
+      showRadarFrame(radarCurrentPos - 1);
+    });
+  if (radarNextBtn)
+    radarNextBtn.addEventListener("click", () => {
+      if (radarTimer) toggleRadarPlay();
+      showRadarFrame(radarCurrentPos + 1);
+    });
+  if (radarPlayBtn) radarPlayBtn.addEventListener("click", toggleRadarPlay);
 });

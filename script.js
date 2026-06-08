@@ -958,6 +958,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openDetail(city) {
     activeCity = city;
+    const url = new URL(window.location);
+    url.searchParams.set("city", city.id);
+    window.history.pushState({ cityId: city.id }, "", url);
+
+    detailZone.textContent = city.country + " " + city.name;
     detailZone.textContent = city.country + " " + city.name;
     overlay.classList.add("active");
     document.body.style.overflow = "hidden";
@@ -969,6 +974,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function closeDetail() {
     overlay.classList.remove("active");
+    const url = new URL(window.location);
+    url.searchParams.delete("city");
+    window.history.pushState({}, "", url);
+
+    overlay.style.backgroundImage = "";
     overlay.style.backgroundImage = "";
     document.body.style.overflow = "";
     activeCity = null;
@@ -1102,34 +1112,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const hourly = weather.hourly;
     hourlyTitle.textContent = `⏱️ Stündlicher Verlauf – ${new Date(targetDate).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long" })}`;
-      hourlyScroll.innerHTML = "";
-  const nowHour = new Date().getHours();
-  const todayDateStr = new Date().toISOString().split("T")[0];
-  const isToday = targetDate === todayDateStr;
+    hourlyScroll.innerHTML = "";
+    const nowHour = new Date().getHours();
+    const todayDateStr = new Date().toISOString().split("T")[0];
+    const isToday = targetDate === todayDateStr;
 
-  for (let i = 0; i < hourly.time.length; i++) {
-    const timeStr = hourly.time[i];
-    if (timeStr.startsWith(targetDate)) {
-      const hour = parseInt(timeStr.split("T")[1].split(":")[0]);
+    for (let i = 0; i < hourly.time.length; i++) {
+      const timeStr = hourly.time[i];
+      if (timeStr.startsWith(targetDate)) {
+        const hour = parseInt(timeStr.split("T")[1].split(":")[0]);
 
-      // Vergangene Stunden für heute ausblenden
-      if (isToday && hour < nowHour) {
-        continue;
+        // Vergangene Stunden für heute ausblenden
+        if (isToday && hour < nowHour) {
+          continue;
+        }
+
+        const temp = Math.round(hourly.temperature_2m[i]);
+        const wCode = hourly.weathercode[i];
+        const icon = WMO_ICONS[wCode] || "🌡️";
+
+        const el = document.createElement("div");
+        el.className = "hourly-item";
+        if (isToday && hour === nowHour) {
+          el.classList.add("current");
+        }
+        el.innerHTML = `<div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div><div class="hourly-icon">${icon}</div><div class="hourly-temp">${temp}°</div>`;
+        hourlyScroll.appendChild(el);
       }
-
-      const temp = Math.round(hourly.temperature_2m[i]);
-      const wCode = hourly.weathercode[i];
-      const icon = WMO_ICONS[wCode] || "🌡️";
-
-      const el = document.createElement("div");
-      el.className = "hourly-item";
-      if (isToday && hour === nowHour) {
-        el.classList.add("current");
-      }
-      el.innerHTML = `<div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div><div class="hourly-icon">${icon}</div><div class="hourly-temp">${temp}°</div>`;
-      hourlyScroll.appendChild(el);
     }
-  }
     hourlyContainer.style.display = "block";
     hourlyContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -1171,6 +1181,20 @@ document.addEventListener("DOMContentLoaded", () => {
   clearBtn.addEventListener("click", clearSearch);
   applyFilter("");
   buildQuickAccess();
+  const params = new URLSearchParams(window.location.search);
+  const urlCityId = params.get("city");
+  if (urlCityId && cityCards[urlCityId]) {
+    openDetail(cityCards[urlCityId].city);
+  }
+
+  // NEU: Damit der "Zurück"-Button des Browsers funktioniert
+  window.addEventListener("popstate", (event) => {
+    if (event.state && event.state.cityId && cityCards[event.state.cityId]) {
+      openDetail(cityCards[event.state.cityId].city);
+    } else {
+      closeDetail();
+    }
+  });
   setInterval(updateClocks, 1000);
 
   const themeBtn = document.getElementById("theme-toggle");

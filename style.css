@@ -775,7 +775,6 @@ body.light-mode {
   text-align: center;
 }
 
-/* ===== REGENRADAR TABS ===== */
 .radar-tabs {
   display: flex;
   justify-content: center;
@@ -887,6 +886,7 @@ body.light-mode {
     flex: 0 0 80px;
   }
 }
+
 /* Header innerhalb des Hero-Bereichs */
 .welcome-hero header {
   margin-bottom: 20px;

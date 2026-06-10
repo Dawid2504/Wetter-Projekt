@@ -115,6 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const overlayGradient = isLight
       ? "linear-gradient(rgba(244, 244, 244, 0.75), rgba(244, 244, 244, 0.9))"
       : "linear-gradient(rgba(18, 18, 18, 0.6), rgba(18, 18, 18, 0.8))";
+
     overlay.style.backgroundImage = `${overlayGradient}, url('${bgUrl}')`;
     overlay.style.backgroundSize = "cover";
     overlay.style.backgroundPosition = "center";
@@ -129,7 +130,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       const res = await fetch(
         "https://timeapi.io/api/time/current/zone?timeZone=UTC",
-        { cache: "no-store", signal: controller.signal },
+        {
+          cache: "no-store",
+          signal: controller.signal,
+        },
       );
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error("API antwortet nicht");
@@ -630,15 +634,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span style="color:${uvColor}">☀️ UV: ${weather.uvIndex !== null ? weather.uvIndex : "-"}</span>
                 </div>
             </div>`;
-
     cardData.forecastEl.innerHTML = weather.forecast
       .map(
         (day) => `
-            <div class="card-forecast-day">
-                <div class="card-forecast-name">${day.day}</div>
-                <div class="card-forecast-icon">${day.icon}</div>
-                <div class="card-forecast-temp">${day.max}° <span>/${day.min}°</span></div>
-            </div>`,
+                <div class="card-forecast-day">
+                    <div class="card-forecast-name">${day.day}</div>
+                    <div class="card-forecast-icon">${day.icon}</div>
+                    <div class="card-forecast-temp">${day.max}° <span>/${day.min}°</span></div>
+                </div>`,
       )
       .join("");
   }
@@ -860,7 +863,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const radarSection = document.getElementById("radar-section");
     if (!radarSection) return;
     radarSection.style.display = "block";
-
     if (!radarMap) {
       radarMap = L.map("radar-map", {
         center: [city.lat, city.lon],
@@ -938,7 +940,6 @@ document.addEventListener("DOMContentLoaded", () => {
     detailMarkers.forEach(
       (m) => radarMap && radarMap.hasLayer(m) && radarMap.removeLayer(m),
     );
-
     const controls = document.querySelector(".radar-controls");
 
     if (activeMapLayer === "rain") {
@@ -962,7 +963,6 @@ document.addEventListener("DOMContentLoaded", () => {
     radarCurrentPos = pos;
     const frame = satelliteFrames[pos];
     if (!frame) return;
-
     const timeLabel = document.getElementById("radar-time");
     if (timeLabel)
       timeLabel.textContent = new Date(frame.time * 1000).toLocaleTimeString(
@@ -993,7 +993,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const active = activeCity;
     if (!active) return;
     radarMap.setZoom(7);
-
     const nearbyCities = cityDatabase
       .filter((c) => {
         if (c.id === active.id) return false;
@@ -1203,7 +1202,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const uvColor = getUvColor(w.uvIndex);
     weatherIcon.textContent = w.icon;
     weatherTemp.textContent = w.temp + "°C";
-    weatherDesc.innerHTML = `<div>${w.desc}</div><div style="margin-top: 8px; font-size: 0.95rem; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; color: var(--text-secondary);"><span>🌅 ${formatTime(w.sunrise)}</span><span>🌇 ${formatTime(w.sunset)}</span><span style="color:${uvColor}">☀️ UV: ${w.uvIndex !== null ? w.uvIndex : "-"}</span></div>`;
+    weatherDesc.innerHTML = `
+            <div>${w.desc}</div>
+            <div style="margin-top: 8px; font-size: 0.95rem; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; color: var(--text-secondary);">
+                <span>🌅 ${formatTime(w.sunrise)}</span>
+                <span>🌇 ${formatTime(w.sunset)}</span>
+                <span style="color:${uvColor}">☀️ UV: ${w.uvIndex !== null ? w.uvIndex : "-"}</span>
+            </div>`;
   }
 
   function renderForecast(forecast, cityId) {
@@ -1227,7 +1232,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const el = document.createElement("div");
       el.className = "forecast-day";
       el.dataset.date = date;
-      el.innerHTML = `<div class="forecast-day-name">${dayName}</div><div class="forecast-icon">${icon}</div><div class="forecast-temps"><span>${max}°</span><span>/${min}°</span></div>`;
+      el.innerHTML = `
+                <div class="forecast-day-name">${dayName}</div>
+                <div class="forecast-icon">${icon}</div>
+                <div class="forecast-temps"><span>${max}°</span> <span>/${min}°</span></div>`;
       el.addEventListener("click", () => showHourlyForecast(cityId, date, el));
       forecastScroll.appendChild(el);
     }
@@ -1263,7 +1271,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const el = document.createElement("div");
         el.className = "hourly-item";
         if (isToday && hour === nowHour) el.classList.add("current");
-        el.innerHTML = `<div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div><div class="hourly-icon">${icon}</div><div class="hourly-temp">${temp}°</div>`;
+        el.innerHTML = `
+                    <div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div>
+                    <div class="hourly-icon">${icon}</div>
+                    <div class="hourly-temp">${temp}°</div>`;
         hourlyScroll.appendChild(el);
       }
     }
@@ -1277,6 +1288,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   detailClose.addEventListener("click", closeDetail);
+
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closeDetail();
   });
@@ -1311,6 +1323,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   clearBtn.addEventListener("click", clearSearch);
+
   applyFilter("");
   buildQuickAccess();
 
@@ -1335,6 +1348,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.add("light-mode");
     themeBtn.textContent = "☀️";
   }
+
   themeBtn.addEventListener("click", () => {
     document.body.classList.toggle("light-mode");
     const isLight = document.body.classList.contains("light-mode");

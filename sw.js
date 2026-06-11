@@ -1364,4 +1364,38 @@ document.addEventListener("DOMContentLoaded", () => {
   if (yearSpan) {
     yearSpan.textContent = new Date().getFullYear();
   }
+  // ===== COMING SOON MODAL =====
+  function showComingSoon(pageName) {
+    const modal = document.getElementById("coming-soon-modal");
+    const title = document.getElementById("modal-title");
+    const text = document.getElementById("modal-text");
+
+    title.textContent = pageName;
+    text.textContent = `Die ${pageName}-Seite wird derzeit erstellt und ist in Kürze verfügbar. Vielen Dank für deine Geduld!`;
+
+    modal.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeComingSoon() {
+    const modal = document.getElementById("coming-soon-modal");
+    modal.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+
+  // Modal schließen bei Klick außerhalb
+  document
+    .getElementById("coming-soon-modal")
+    .addEventListener("click", (e) => {
+      if (e.target.id === "coming-soon-modal") {
+        closeComingSoon();
+      }
+    });
+
+  // Modal schließen mit Escape-Taste
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeComingSoon();
+    }
+  });
 });

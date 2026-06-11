@@ -144,11 +144,26 @@
     <button id="theme-toggle" class="theme-toggle-btn">🌙</button>
 
     <!-- ===== FOOTER ===== -->
+    <!-- ===== FOOTER ===== -->
     <footer class="site-footer">
       <div class="footer-container">
         <div class="footer-links">
-          <a href="/impressum.html">Impressum</a>
-          <a href="/datenschutz.html">Datenschutz</a>
+          <a
+            href="#"
+            onclick="
+              showComingSoon('Impressum');
+              return false;
+            "
+            >Impressum</a
+          >
+          <a
+            href="#"
+            onclick="
+              showComingSoon('Datenschutz');
+              return false;
+            "
+            >Datenschutz</a
+          >
           <a
             href="https://dawid-makowski.de"
             target="_blank"
@@ -199,6 +214,19 @@
         </div>
       </div>
     </footer>
+
+    <!-- ===== COMING SOON MODAL ===== -->
+    <div id="coming-soon-modal" class="modal">
+      <div class="modal-content">
+        <button class="modal-close" onclick="closeComingSoon()">✕</button>
+        <div class="modal-icon">🚧</div>
+        <h2 id="modal-title">In Arbeit</h2>
+        <p id="modal-text">Diese Seite wird in Kürze verfügbar sein.</p>
+        <div class="modal-progress">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>

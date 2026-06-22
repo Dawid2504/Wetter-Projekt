@@ -153,6 +153,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const cityDatabase = [
     {
+      id: "aachen",
+      name: "Aachen",
+      country: "🇩🇪",
+      timezone: "Europe/Berlin",
+      lat: 50.77,
+      lon: 6.08,
+    },
+    {
       id: "berlin",
       name: "Berlin",
       country: "🇩🇪",
@@ -552,6 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildQuickAccess() {
     const popularCities = [
+      "aachen",
       "berlin",
       "london",
       "newyork",

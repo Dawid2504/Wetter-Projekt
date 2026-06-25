@@ -1284,12 +1284,15 @@ document.addEventListener("DOMContentLoaded", () => {
     weatherIcon.textContent = w.icon;
     weatherTemp.textContent = w.temp + "°C";
     weatherDesc.innerHTML = `
-      <div>${w.desc}</div>
-      <div style="margin-top: 8px; font-size: 0.95rem; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; color: var(--text-secondary);">
-        <span>🌅 ${formatTime(w.sunrise)}</span>
-        <span>🌇 ${formatTime(w.sunset)}</span>
-        <span style="color:${uvColor}">☀️ UV: ${w.uvIndex !== null ? w.uvIndex : "-"}</span>
-      </div>`;
+    <div>${w.desc}</div>
+    <div style="margin-top: 8px; font-size: 0.95rem; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; color: var(--text-secondary);">
+      <span style="color:${uvColor}">☀️ UV: ${w.uvIndex !== null ? w.uvIndex : "-"}</span>
+    </div>`;
+
+    // Startet die neue Sonnen-Mond-Animation
+    if (activeCity) {
+      updateSunMoonTracker(w.sunrise, w.sunset, activeCity.timezone);
+    }
   }
 
   function renderForecast(forecast, cityId) {

@@ -94,6 +94,55 @@ document.addEventListener("DOMContentLoaded", () => {
     return WMO_ICONS_DAY[code] || "🌡️";
   }
 
+  // Holt die Wetterdaten einer Stadt von der API und baut das Cache-Objekt.
+  // Wird sowohl von der Detailansicht als auch von den Karten genutzt.
+  async function fetchWeather(city) {
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability&timezone=auto`;
+    const weatherRes = await fetch(weatherUrl);
+    const weatherData = await weatherRes.json();
+    const current = weatherData.current_weather;
+    const daily = weatherData.daily;
+    const hourly = weatherData.hourly;
+
+    const isNight = isNightTime(
+      daily.sunrise ? daily.sunrise[0] : null,
+      daily.sunset ? daily.sunset[0] : null,
+      city.timezone,
+    );
+
+    const weather = {
+      code: current.weathercode,
+      temp: Math.round(current.temperature),
+      desc: WMO_CODES[current.weathercode] || "Unbekannt",
+      icon: getWeatherIcon(current.weathercode, isNight),
+      sunrise: daily.sunrise ? daily.sunrise[0] : null,
+      sunset: daily.sunset ? daily.sunset[0] : null,
+      uvIndex: daily.uv_index_max ? daily.uv_index_max[0] : null,
+      forecast: daily.time.slice(0, 3).map((date, i) => ({
+        date: date,
+        day: new Date(date).toLocaleDateString("de-DE", { weekday: "short" }),
+        icon: getWeatherIcon(daily.weathercode[i], false),
+        max: Math.round(daily.temperature_2m_max[i]),
+        min: Math.round(daily.temperature_2m_min[i]),
+      })),
+      fullForecast: {
+        time: daily.time.slice(0, 7),
+        weathercode: daily.weathercode.slice(0, 7),
+        max: daily.temperature_2m_max.slice(0, 7),
+        min: daily.temperature_2m_min.slice(0, 7),
+        precipProb: daily.precipitation_probability_max
+          ? daily.precipitation_probability_max.slice(0, 7)
+          : [],
+        sunrise: daily.sunrise ? daily.sunrise.slice(0, 7) : [],
+        sunset: daily.sunset ? daily.sunset.slice(0, 7) : [],
+      },
+      hourly: hourly,
+    };
+
+    weatherCache[city.id] = weather;
+    return weather;
+  }
+
   async function getWeatherForCity(city) {
     weatherLoading.style.display = "block";
     weatherInfo.style.display = "none";
@@ -102,57 +151,16 @@ document.addEventListener("DOMContentLoaded", () => {
     hourlyContainer.style.display = "none";
 
     if (weatherCache[city.id] && weatherCache[city.id].hourly) {
-      applyDetailBackground(weatherCache[city.id].code);
-      updateDetailWeatherUI(weatherCache[city.id]);
-      renderForecast(
-        weatherCache[city.id].fullForecast || weatherCache[city.id].forecast,
-        city.id,
-      );
+      const cached = weatherCache[city.id];
+      applyDetailBackground(cached.code);
+      updateDetailWeatherUI(cached);
+      renderForecast(cached.fullForecast, city.id);
       weatherLoading.style.display = "none";
       return;
     }
 
     try {
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&hourly=temperature_2m,weathercode&timezone=auto`;
-      const weatherRes = await fetch(weatherUrl);
-      const weatherData = await weatherRes.json();
-      const current = weatherData.current_weather;
-      const daily = weatherData.daily;
-      const hourly = weatherData.hourly;
-
-      const isNight = isNightTime(
-        daily.sunrise ? daily.sunrise[0] : null,
-        daily.sunset ? daily.sunset[0] : null,
-        city.timezone,
-      );
-
-      const weather = {
-        code: current.weathercode,
-        temp: Math.round(current.temperature),
-        desc: WMO_CODES[current.weathercode] || "Unbekannt",
-        icon: getWeatherIcon(current.weathercode, isNight),
-        sunrise: daily.sunrise ? daily.sunrise[0] : null,
-        sunset: daily.sunset ? daily.sunset[0] : null,
-        uvIndex: daily.uv_index_max ? daily.uv_index_max[0] : null,
-        forecast: daily.time.slice(0, 3).map((date, i) => ({
-          date: date,
-          day: new Date(date).toLocaleDateString("de-DE", { weekday: "short" }),
-          icon: getWeatherIcon(daily.weathercode[i], false),
-          max: Math.round(daily.temperature_2m_max[i]),
-          min: Math.round(daily.temperature_2m_min[i]),
-        })),
-        fullForecast: {
-          time: daily.time.slice(0, 7),
-          weathercode: daily.weathercode.slice(0, 7),
-          max: daily.temperature_2m_max.slice(0, 7),
-          min: daily.temperature_2m_min.slice(0, 7),
-          sunrise: daily.sunrise ? daily.sunrise.slice(0, 7) : [],
-          sunset: daily.sunset ? daily.sunset.slice(0, 7) : [],
-        },
-        hourly: hourly,
-      };
-
-      weatherCache[city.id] = weather;
+      const weather = await fetchWeather(city);
       applyDetailBackground(weather.code);
       updateDetailWeatherUI(weather);
       renderForecast(weather.fullForecast, city.id);
@@ -220,38 +228,166 @@ document.addEventListener("DOMContentLoaded", () => {
     99: "Schweres Gewitter",
   };
 
-  const WEATHER_BACKGROUNDS = {
-    clear: "images/bg-clear.png",
-    cloudy: "images/bg-cloudy.png",
-    fog: "images/bg-fog.png",
-    rain: "images/bg-rain.png",
-    snow: "images/bg-snow.png",
-    thunder: "images/bg-thunder.png",
-  };
-
-  function getWeatherBackground(code) {
-    if ([0, 1].includes(code)) return WEATHER_BACKGROUNDS.clear;
-    if ([2, 3].includes(code)) return WEATHER_BACKGROUNDS.cloudy;
-    if ([45, 48].includes(code)) return WEATHER_BACKGROUNDS.fog;
-    if ([51, 53, 55, 61, 63, 65, 80, 81].includes(code))
-      return WEATHER_BACKGROUNDS.rain;
-    if ([71, 73, 75].includes(code)) return WEATHER_BACKGROUNDS.snow;
-    if ([82, 95, 96, 99].includes(code)) return WEATHER_BACKGROUNDS.thunder;
-    return WEATHER_BACKGROUNDS.clear;
+  // Ordnet WMO-Codes einem animierten Hintergrund-Typ zu.
+  function getWeatherAnimType(code) {
+    if ([0, 1].includes(code)) return "clear";
+    if ([2].includes(code)) return "partly";
+    if ([3].includes(code)) return "cloudy";
+    if ([45, 48].includes(code)) return "fog";
+    if ([51, 53, 55, 61, 63, 65, 80, 81].includes(code)) return "rain";
+    if ([71, 73, 75].includes(code)) return "snow";
+    if ([82, 95, 96, 99].includes(code)) return "thunder";
+    return "clear";
   }
 
+  // Baut die animierte Wetter-Szene als DOM-Schicht hinter dem Inhalt auf.
   function applyDetailBackground(code) {
-    const bgUrl = getWeatherBackground(code);
     const isLight = document.body.classList.contains("light-mode");
-    const overlayGradient = isLight
-      ? "linear-gradient(rgba(244, 244, 244, 0.75), rgba(244, 244, 244, 0.9))"
-      : "linear-gradient(rgba(18, 18, 18, 0.6), rgba(18, 18, 18, 0.8))";
-    overlay.style.backgroundImage = `${overlayGradient}, url('${bgUrl}')`;
-    overlay.style.backgroundSize = "cover";
-    overlay.style.backgroundPosition = "center";
+    const isNight =
+      activeCity &&
+      weatherCache[activeCity.id] &&
+      isNightTime(
+        weatherCache[activeCity.id].sunrise,
+        weatherCache[activeCity.id].sunset,
+        activeCity.timezone,
+      );
+    const type = getWeatherAnimType(code);
+
+    // Vorhandene Bild-Hintergründe entfernen (wir nutzen jetzt Animation)
+    overlay.style.backgroundImage = "";
+
+    // Animations-Layer holen oder erstellen
+    let scene = document.getElementById("weather-scene");
+    if (!scene) {
+      scene = document.createElement("div");
+      scene.id = "weather-scene";
+      scene.className = "weather-scene";
+      overlay.insertBefore(scene, overlay.firstChild);
+    }
+
+    // Reset
+    scene.className = "weather-scene";
+    scene.innerHTML = "";
+    scene.classList.add(`scene-${type}`);
+    if (isNight) scene.classList.add("scene-night");
+    if (isLight) scene.classList.add("scene-light");
+
+    buildSceneElements(scene, type, isNight);
 
     const detailContent = document.querySelector(".detail-content");
     if (detailContent) detailContent.style.color = isLight ? "#111" : "#fff";
+  }
+
+  // Erzeugt die einzelnen animierten Partikel/Objekte je nach Wettertyp.
+  function buildSceneElements(scene, type, isNight) {
+    const frag = document.createDocumentFragment();
+
+    if (type === "clear" && !isNight) {
+      const sun = document.createElement("div");
+      sun.className = "anim-sun";
+      sun.innerHTML =
+        '<div class="sun-core"></div><div class="sun-rays"></div>';
+      frag.appendChild(sun);
+    }
+
+    if (type === "clear" && isNight) {
+      const moon = document.createElement("div");
+      moon.className = "anim-moon";
+      frag.appendChild(moon);
+      for (let i = 0; i < 40; i++) {
+        const star = document.createElement("div");
+        star.className = "anim-star";
+        star.style.left = Math.random() * 100 + "%";
+        star.style.top = Math.random() * 60 + "%";
+        star.style.animationDelay = Math.random() * 3 + "s";
+        star.style.setProperty("--star-size", Math.random() * 2 + 1 + "px");
+        frag.appendChild(star);
+      }
+    }
+
+    if (type === "partly") {
+      if (!isNight) {
+        const sun = document.createElement("div");
+        sun.className = "anim-sun small";
+        sun.innerHTML =
+          '<div class="sun-core"></div><div class="sun-rays"></div>';
+        frag.appendChild(sun);
+      } else {
+        const moon = document.createElement("div");
+        moon.className = "anim-moon";
+        frag.appendChild(moon);
+      }
+      addClouds(frag, 3);
+    }
+
+    if (type === "cloudy" || type === "fog") {
+      addClouds(frag, type === "fog" ? 5 : 4);
+    }
+
+    if (type === "fog") {
+      for (let i = 0; i < 4; i++) {
+        const f = document.createElement("div");
+        f.className = "anim-fog";
+        f.style.top = 15 + i * 20 + "%";
+        f.style.animationDuration = 18 + i * 4 + "s";
+        f.style.animationDelay = i * -5 + "s";
+        frag.appendChild(f);
+      }
+    }
+
+    if (type === "rain" || type === "thunder") {
+      addClouds(frag, 4, true);
+      const rain = document.createElement("div");
+      rain.className = "anim-rain";
+      for (let i = 0; i < 60; i++) {
+        const drop = document.createElement("div");
+        drop.className = "rain-drop";
+        drop.style.left = Math.random() * 100 + "%";
+        drop.style.animationDuration = 0.5 + Math.random() * 0.4 + "s";
+        drop.style.animationDelay = Math.random() * 2 + "s";
+        drop.style.opacity = 0.3 + Math.random() * 0.5;
+        rain.appendChild(drop);
+      }
+      frag.appendChild(rain);
+    }
+
+    if (type === "thunder") {
+      const flash = document.createElement("div");
+      flash.className = "anim-lightning";
+      frag.appendChild(flash);
+    }
+
+    if (type === "snow") {
+      addClouds(frag, 3, true);
+      const snow = document.createElement("div");
+      snow.className = "anim-snow";
+      for (let i = 0; i < 50; i++) {
+        const flake = document.createElement("div");
+        flake.className = "snow-flake";
+        flake.textContent = "❄";
+        flake.style.left = Math.random() * 100 + "%";
+        flake.style.fontSize = Math.random() * 10 + 8 + "px";
+        flake.style.animationDuration = 4 + Math.random() * 5 + "s";
+        flake.style.animationDelay = Math.random() * 5 + "s";
+        flake.style.opacity = 0.4 + Math.random() * 0.5;
+        snow.appendChild(flake);
+      }
+      frag.appendChild(snow);
+    }
+
+    scene.appendChild(frag);
+  }
+
+  function addClouds(frag, count, dark) {
+    for (let i = 0; i < count; i++) {
+      const cloud = document.createElement("div");
+      cloud.className = "anim-cloud" + (dark ? " dark" : "");
+      cloud.style.top = 8 + i * 14 + "%";
+      cloud.style.setProperty("--cloud-scale", 0.7 + Math.random() * 0.8);
+      cloud.style.animationDuration = 30 + Math.random() * 30 + "s";
+      cloud.style.animationDelay = i * -8 + "s";
+      frag.appendChild(cloud);
+    }
   }
 
   async function syncTime() {
@@ -719,46 +855,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     try {
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max&hourly=temperature_2m,weathercode&timezone=auto`;
-      const weatherRes = await fetch(weatherUrl);
-      const weatherData = await weatherRes.json();
-      const current = weatherData.current_weather;
-      const daily = weatherData.daily;
-      const hourly = weatherData.hourly;
-
-      const isNight = isNightTime(
-        daily.sunrise ? daily.sunrise[0] : null,
-        daily.sunset ? daily.sunset[0] : null,
-        city.timezone,
-      );
-
-      const weather = {
-        code: current.weathercode,
-        temp: Math.round(current.temperature),
-        desc: WMO_CODES[current.weathercode] || "Unbekannt",
-        icon: getWeatherIcon(current.weathercode, isNight),
-        sunrise: daily.sunrise ? daily.sunrise[0] : null,
-        sunset: daily.sunset ? daily.sunset[0] : null,
-        uvIndex: daily.uv_index_max ? daily.uv_index_max[0] : null,
-        forecast: daily.time.slice(0, 3).map((date, i) => ({
-          date: date,
-          day: new Date(date).toLocaleDateString("de-DE", { weekday: "short" }),
-          icon: getWeatherIcon(daily.weathercode[i], false),
-          max: Math.round(daily.temperature_2m_max[i]),
-          min: Math.round(daily.temperature_2m_min[i]),
-        })),
-        fullForecast: {
-          time: daily.time.slice(0, 7),
-          weathercode: daily.weathercode.slice(0, 7),
-          max: daily.temperature_2m_max.slice(0, 7),
-          min: daily.temperature_2m_min.slice(0, 7),
-          sunrise: daily.sunrise ? daily.sunrise.slice(0, 7) : [],
-          sunset: daily.sunset ? daily.sunset.slice(0, 7) : [],
-        },
-        hourly: hourly,
-      };
-
-      weatherCache[city.id] = weather;
+      const weather = await fetchWeather(city);
       updateCardWeatherUI(city.id, weather);
       updateWeatherStats();
     } catch (error) {
@@ -1284,6 +1381,8 @@ document.addEventListener("DOMContentLoaded", () => {
     url.searchParams.delete("city");
     window.history.pushState({}, "", url);
     overlay.style.backgroundImage = "";
+    const scene = document.getElementById("weather-scene");
+    if (scene) scene.innerHTML = "";
     document.body.style.overflow = "";
     activeCity = null;
     hourlyContainer.style.display = "none";
@@ -1386,9 +1485,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const temp = Math.round(hourly.temperature_2m[i]);
         const wCode = hourly.weathercode[i];
+        const precipProb =
+          hourly.precipitation_probability &&
+          hourly.precipitation_probability[i] != null
+            ? Math.round(hourly.precipitation_probability[i])
+            : null;
 
         const isNightHour = isNightTimeForHour(timeStr, sunrise, sunset);
         const icon = getWeatherIcon(wCode, isNightHour);
+
+        // Farbabstufung der Regenwahrscheinlichkeit
+        let precipClass = "low";
+        if (precipProb != null) {
+          if (precipProb >= 70) precipClass = "high";
+          else if (precipProb >= 30) precipClass = "mid";
+        }
 
         const el = document.createElement("div");
         el.className = "hourly-item";
@@ -1396,7 +1507,10 @@ document.addEventListener("DOMContentLoaded", () => {
         el.innerHTML = `
           <div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div>
           <div class="hourly-icon">${icon}</div>
-          <div class="hourly-temp">${temp}°</div>`;
+          <div class="hourly-temp">${temp}°</div>
+          <div class="hourly-precip ${precipClass}">
+            <span class="precip-drop">💧</span>${precipProb != null ? precipProb + "%" : "–"}
+          </div>`;
         hourlyScroll.appendChild(el);
       }
     }
@@ -1497,64 +1611,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (yearSpan) {
     yearSpan.textContent = new Date().getFullYear();
   }
-  // Neue Funktion zur Berechnung des Sonnen/Mond-Verlaufs
-  function updateSunMoonTracker(sunriseStr, sunsetStr, timezone) {
-    const tracker = document.getElementById("sun-moon-tracker");
-    const icon = document.getElementById("tracker-icon");
-    const startLabel = document.getElementById("tracker-start");
-    const endLabel = document.getElementById("tracker-end");
-
-    if (!sunriseStr || !sunsetStr || !timezone) {
-      tracker.style.display = "none";
-      return;
-    }
-
-    tracker.style.display = "block";
-
-    const nowStr = new Date().toLocaleString("en-US", { timeZone: timezone });
-    const now = new Date(nowStr).getTime();
-    const sunrise = new Date(sunriseStr).getTime();
-    const sunset = new Date(sunsetStr).getTime();
-
-    let isDay = now >= sunrise && now <= sunset;
-    let start, end, progress;
-
-    if (isDay) {
-      start = sunrise;
-      end = sunset;
-      icon.textContent = "☀️";
-      startLabel.textContent = `🌅 ${formatTime(sunriseStr)}`;
-      endLabel.textContent = `🌇 ${formatTime(sunsetStr)}`;
-    } else {
-      icon.textContent = "🌙";
-      const oneDay = 24 * 60 * 60 * 1000;
-
-      if (now < sunrise) {
-        start = sunset - oneDay;
-        end = sunrise;
-      } else {
-        start = sunset;
-        end = sunrise + oneDay;
-      }
-
-      startLabel.textContent = `🌇 ${formatTime(new Date(start).toISOString())}`;
-      endLabel.textContent = `🌅 ${formatTime(new Date(end).toISOString())}`;
-    }
-
-    const totalDuration = end - start;
-    const elapsed = now - start;
-    progress = Math.max(0, Math.min(1, elapsed / totalDuration));
-
-    const angle = Math.PI - progress * Math.PI;
-    const radius = 125;
-
-    const x = radius + radius * Math.cos(angle);
-    const y = radius * Math.sin(angle);
-
-    icon.style.left = `${x}px`;
-    icon.style.bottom = `${y}px`;
-  }
-  // ===== 1. FEHLENDE SONNEN-/MOND-FUNKTION =====
+  // ===== SONNEN-/MOND-VERLAUF =====
   function updateSunMoonTracker(sunriseISO, sunsetISO, timezone) {
     const tracker = document.getElementById("sun-moon-tracker");
     const icon = document.getElementById("tracker-icon");
@@ -1612,7 +1669,7 @@ document.addEventListener("DOMContentLoaded", () => {
     icon.style.bottom = `${y}%`;
   }
 
-  // ===== 2. MODAL LOGIK FÜR IMPRESSUM & DATENSCHUTZ =====
+  // ===== MODAL-LOGIK FÜR IMPRESSUM & DATENSCHUTZ =====
   const modal = document.querySelector(".modal");
   const modalContent = document.querySelector(".modal-content");
 

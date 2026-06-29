@@ -94,15 +94,158 @@ document.addEventListener("DOMContentLoaded", () => {
     return WMO_ICONS_DAY[code] || "🌡️";
   }
 
+  // ===== EINHEITEN (°C / °F) =====
+  const UNIT_KEY = "weltinfos_unit";
+  let tempUnit = localStorage.getItem(UNIT_KEY) === "F" ? "F" : "C";
+
+  // Wandelt einen in °C gelieferten Wert in die aktuell gewählte Einheit um.
+  function convTemp(celsius) {
+    if (celsius == null || isNaN(celsius)) return celsius;
+    return tempUnit === "F"
+      ? Math.round((celsius * 9) / 5 + 32)
+      : Math.round(celsius);
+  }
+  // Liefert das Gradzeichen inkl. Einheit, optional ohne "C"/"F".
+  function unitLabel(withDeg = true) {
+    return (withDeg ? "°" : "") + tempUnit;
+  }
+  // Formatiert einen °C-Wert komplett (z. B. "21°C").
+  function fmtTemp(celsius, withUnit = true) {
+    if (celsius == null || isNaN(celsius))
+      return "--°" + (withUnit ? tempUnit : "");
+    return convTemp(celsius) + "°" + (withUnit ? tempUnit : "");
+  }
+
+  // ===== ANIMIERTE SVG-WETTER-ICONS =====
+  // Alle Icons nutzen currentColor + die Akzentfarbe und animieren per CSS.
+  function svgWeatherIcon(code, isNight, size) {
+    const cls = "wx-svg";
+    const s = size || 1;
+    const wrap = (inner, extra) =>
+      `<span class="wx-icon ${extra || ""}" style="--wx-size:${s}em">` +
+      `<svg viewBox="0 0 64 64" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg></span>`;
+
+    const sun = (cx = 32, cy = 30, r = 12) => `
+      <g class="wx-sun">
+        <circle cx="${cx}" cy="${cy}" r="${r}" class="wx-sun-core"/>
+        <g class="wx-rays" stroke-linecap="round">
+          ${Array.from({ length: 8 })
+            .map((_, i) => {
+              const a = (i * Math.PI) / 4;
+              const x1 = cx + Math.cos(a) * (r + 4);
+              const y1 = cy + Math.sin(a) * (r + 4);
+              const x2 = cx + Math.cos(a) * (r + 10);
+              const y2 = cy + Math.sin(a) * (r + 10);
+              return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+            })
+            .join("")}
+        </g>
+      </g>`;
+
+    const moon = `
+      <g class="wx-moon">
+        <path d="M40 16a16 16 0 1 0 8 30 20 20 0 0 1-8-30z"/>
+      </g>`;
+
+    const cloud = (extraCls = "", y = 0) => `
+      <g class="wx-cloud ${extraCls}" transform="translate(0 ${y})">
+        <path d="M22 44a10 10 0 0 1 .6-19.98A14 14 0 0 1 49 28a8 8 0 0 1-1 16z"/>
+      </g>`;
+
+    const stars = Array.from({ length: 5 })
+      .map((_, i) => {
+        const x = [10, 50, 18, 44, 32][i];
+        const y = [14, 18, 40, 38, 10][i];
+        return `<circle class="wx-star" cx="${x}" cy="${y}" r="1.4" style="animation-delay:${i * 0.4}s"/>`;
+      })
+      .join("");
+
+    const rain = (drops = 3) =>
+      `<g class="wx-rain" stroke-linecap="round">` +
+      Array.from({ length: drops })
+        .map(
+          (_, i) =>
+            `<line class="wx-drop" x1="${20 + i * 9}" y1="46" x2="${18 + i * 9}" y2="54" style="animation-delay:${i * 0.25}s"/>`,
+        )
+        .join("") +
+      `</g>`;
+
+    const snow = (flakes = 3) =>
+      `<g class="wx-snow">` +
+      Array.from({ length: flakes })
+        .map(
+          (_, i) =>
+            `<circle class="wx-flake" cx="${21 + i * 9}" cy="50" r="2" style="animation-delay:${i * 0.4}s"/>`,
+        )
+        .join("") +
+      `</g>`;
+
+    const bolt = `<polygon class="wx-bolt" points="32,44 27,54 33,54 29,62 40,50 34,50 38,44"/>`;
+    const fog = `<g class="wx-fog" stroke-linecap="round">
+        <line x1="14" y1="40" x2="50" y2="40"/>
+        <line x1="18" y1="46" x2="46" y2="46"/>
+        <line x1="16" y1="52" x2="48" y2="52"/>
+      </g>`;
+
+    // Code-Zuordnung
+    if ([0, 1].includes(code))
+      return isNight ? wrap(moon + stars, "wx-night") : wrap(sun());
+    if (code === 2)
+      return isNight
+        ? wrap(moon + cloud("wx-cloud-front", 4))
+        : wrap(sun(38, 24, 8) + cloud("wx-cloud-front", 6));
+    if (code === 3) return wrap(cloud("wx-cloud-solo"));
+    if ([45, 48].includes(code)) return wrap(cloud("wx-cloud-solo", -4) + fog);
+    if ([51, 53, 55, 61, 63, 80, 81].includes(code))
+      return wrap(cloud("wx-cloud-solo", -6) + rain(3));
+    if ([65, 82].includes(code))
+      return wrap(cloud("wx-cloud-solo", -6) + rain(4));
+    if ([71, 73, 75].includes(code))
+      return wrap(cloud("wx-cloud-solo", -6) + snow(3));
+    if ([95, 96, 99].includes(code))
+      return wrap(cloud("wx-cloud-solo wx-cloud-dark", -6) + bolt + rain(2));
+    return isNight ? wrap(moon + stars, "wx-night") : wrap(sun());
+  }
+
+  // ===== UNWETTERWARNUNGEN =====
+  // Bestimmt anhand von Code, Temperatur, UV und Wind eine Warnstufe.
+  function getWeatherAlert(code, tempC, uv, windKmh) {
+    // Gewitter / schwere Schauer
+    if ([95, 96, 99].includes(code))
+      return { level: "severe", icon: "⛈️", label: "Gewitterwarnung" };
+    if ([82].includes(code))
+      return { level: "severe", icon: "🌧️", label: "Starkregen" };
+    if ([75].includes(code))
+      return { level: "warn", icon: "❄️", label: "Starker Schneefall" };
+    // Hitze
+    if (tempC != null && tempC >= 35)
+      return { level: "severe", icon: "🥵", label: "Extreme Hitze" };
+    if (tempC != null && tempC >= 30)
+      return { level: "warn", icon: "🌡️", label: "Hitzewarnung" };
+    // Strenger Frost
+    if (tempC != null && tempC <= -10)
+      return { level: "warn", icon: "🥶", label: "Strenger Frost" };
+    // Sturm
+    if (windKmh != null && windKmh >= 75)
+      return { level: "severe", icon: "🌬️", label: "Sturm" };
+    if (windKmh != null && windKmh >= 50)
+      return { level: "warn", icon: "💨", label: "Windig" };
+    // Sehr hohe UV-Belastung
+    if (uv != null && uv >= 8)
+      return { level: "warn", icon: "☀️", label: "Sehr hohe UV-Strahlung" };
+    return null;
+  }
+
   // Holt die Wetterdaten einer Stadt von der API und baut das Cache-Objekt.
   // Wird sowohl von der Detailansicht als auch von den Karten genutzt.
   async function fetchWeather(city) {
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability&timezone=auto`;
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m&timezone=auto`;
     const weatherRes = await fetch(weatherUrl);
     const weatherData = await weatherRes.json();
     const current = weatherData.current_weather;
     const daily = weatherData.daily;
     const hourly = weatherData.hourly;
+    const cur = weatherData.current || {};
 
     const isNight = isNightTime(
       daily.sunrise ? daily.sunrise[0] : null,
@@ -110,17 +253,44 @@ document.addEventListener("DOMContentLoaded", () => {
       city.timezone,
     );
 
+    const uvToday = daily.uv_index_max ? daily.uv_index_max[0] : null;
+    const apparent =
+      cur.apparent_temperature != null
+        ? Math.round(cur.apparent_temperature)
+        : null;
+    const windSpeed =
+      cur.wind_speed_10m != null
+        ? Math.round(cur.wind_speed_10m)
+        : current.windspeed != null
+          ? Math.round(current.windspeed)
+          : null;
+
     const weather = {
       code: current.weathercode,
       temp: Math.round(current.temperature),
       desc: WMO_CODES[current.weathercode] || "Unbekannt",
       icon: getWeatherIcon(current.weathercode, isNight),
+      isNight: isNight,
+      apparent: apparent,
+      humidity:
+        cur.relative_humidity_2m != null
+          ? Math.round(cur.relative_humidity_2m)
+          : null,
+      wind: windSpeed,
+      windDir: cur.wind_direction_10m != null ? cur.wind_direction_10m : null,
+      alert: getWeatherAlert(
+        current.weathercode,
+        Math.round(current.temperature),
+        uvToday,
+        windSpeed,
+      ),
       sunrise: daily.sunrise ? daily.sunrise[0] : null,
       sunset: daily.sunset ? daily.sunset[0] : null,
-      uvIndex: daily.uv_index_max ? daily.uv_index_max[0] : null,
+      uvIndex: uvToday,
       forecast: daily.time.slice(0, 3).map((date, i) => ({
         date: date,
         day: new Date(date).toLocaleDateString("de-DE", { weekday: "short" }),
+        code: daily.weathercode[i],
         icon: getWeatherIcon(daily.weathercode[i], false),
         max: Math.round(daily.temperature_2m_max[i]),
         min: Math.round(daily.temperature_2m_min[i]),
@@ -145,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function getWeatherForCity(city) {
     weatherLoading.style.display = "block";
+    weatherLoading.innerHTML = buildDetailSkeleton();
     weatherInfo.style.display = "none";
     weatherError.style.display = "none";
     forecastContainer.style.display = "none";
@@ -169,6 +340,21 @@ document.addEventListener("DOMContentLoaded", () => {
       weatherLoading.style.display = "none";
       weatherError.style.display = "block";
     }
+  }
+
+  // Baut das Skeleton-Markup für die Detail-Wetteransicht.
+  function buildDetailSkeleton() {
+    return `
+      <div class="wx-skeleton">
+        <div class="sk-row sk-main">
+          <div class="sk-circle"></div>
+          <div class="sk-temp"></div>
+        </div>
+        <div class="sk-grid">
+          <div class="sk-tile"></div><div class="sk-tile"></div>
+          <div class="sk-tile"></div><div class="sk-tile"></div>
+        </div>
+      </div>`;
   }
 
   function isNightTime(sunrise, sunset, timezone) {
@@ -788,20 +974,20 @@ document.addEventListener("DOMContentLoaded", () => {
     dateEl.textContent = "...";
 
     const weatherEl = document.createElement("div");
-    weatherEl.className = "card-weather";
+    weatherEl.className = "card-weather is-loading";
     weatherEl.innerHTML = `
-      <div class="card-weather-icon">🌡️</div>
+      <div class="card-weather-icon"><span class="sk-mini-circle"></span></div>
       <div class="card-weather-info">
-        <div class="card-weather-temp">--°C</div>
-        <div class="card-weather-desc">Lädt...</div>
+        <div class="card-weather-temp"><span class="sk-bar sk-bar-temp"></span></div>
+        <div class="card-weather-desc"><span class="sk-bar sk-bar-desc"></span></div>
       </div>`;
 
     const forecastEl = document.createElement("div");
-    forecastEl.className = "card-forecast";
+    forecastEl.className = "card-forecast is-loading";
     forecastEl.innerHTML = `
-      <div class="card-forecast-day"><div class="card-forecast-name">---</div><div class="card-forecast-icon">🌡️</div><div class="card-forecast-temp">--°</div></div>
-      <div class="card-forecast-day"><div class="card-forecast-name">---</div><div class="card-forecast-icon">🌡️</div><div class="card-forecast-temp">--°</div></div>
-      <div class="card-forecast-day"><div class="card-forecast-name">---</div><div class="card-forecast-icon">🌡️</div><div class="card-forecast-temp">--°</div></div>`;
+      <div class="card-forecast-day"><span class="sk-bar sk-bar-sm"></span><span class="sk-mini-circle sm"></span><span class="sk-bar sk-bar-sm"></span></div>
+      <div class="card-forecast-day"><span class="sk-bar sk-bar-sm"></span><span class="sk-mini-circle sm"></span><span class="sk-bar sk-bar-sm"></span></div>
+      <div class="card-forecast-day"><span class="sk-bar sk-bar-sm"></span><span class="sk-mini-circle sm"></span><span class="sk-bar sk-bar-sm"></span></div>`;
 
     card.append(starBtn, zoneName, timeEl, dateEl, weatherEl, forecastEl);
     card.addEventListener("click", () => openDetail(city));
@@ -852,25 +1038,85 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!cardData) return;
     if (weatherCache[city.id]) {
       updateCardWeatherUI(city.id, weatherCache[city.id]);
+      maybeUpdateHeroMood(city.id);
       return;
     }
     try {
       const weather = await fetchWeather(city);
       updateCardWeatherUI(city.id, weather);
       updateWeatherStats();
+      maybeUpdateHeroMood(city.id);
     } catch (error) {
       console.warn("Wetter für " + city.name + " fehlgeschlagen: ", error);
     }
   }
 
+  // ===== DYNAMISCHER HERO-HINTERGRUND =====
+  const LAST_CITY_KEY = "weltinfos_last_city";
+  let heroMoodApplied = false;
+
+  // Wählt die "Leitstadt" für die Hero-Stimmung: erst zuletzt besuchte,
+  // sonst erster Favorit.
+  function heroLeadCityId() {
+    const last = localStorage.getItem(LAST_CITY_KEY);
+    if (last && weatherCache[last]) return last;
+    for (const id of favorites) if (weatherCache[id]) return id;
+    return null;
+  }
+
+  function maybeUpdateHeroMood(justLoadedId) {
+    const lead = heroLeadCityId();
+    if (!lead) return;
+    // Nur neu setzen, wenn die gerade geladene Stadt die Leitstadt ist
+    // oder noch keine Stimmung gesetzt wurde.
+    if (justLoadedId && justLoadedId !== lead && heroMoodApplied) return;
+    const w = weatherCache[lead];
+    if (!w) return;
+    applyHeroMood(w.code, w.isNight);
+    heroMoodApplied = true;
+  }
+
+  // Setzt CSS-Variablen für den Hero-Verlauf je nach Wetterlage.
+  function applyHeroMood(code, isNight) {
+    const type = getWeatherAnimType(code);
+    const moods = {
+      clear: ["#0d3b2e", "#0a4d5c", "#13694f"],
+      partly: ["#0d3b2e", "#234b5c", "#1c5e6e"],
+      cloudy: ["#1f2933", "#33414d", "#26323c"],
+      fog: ["#2a2f33", "#3a4248", "#2f363b"],
+      rain: ["#10212e", "#143b4d", "#1d4b63"],
+      snow: ["#1b2733", "#2e4456", "#3a5872"],
+      thunder: ["#241a2e", "#3a2350", "#23103b"],
+    };
+    const nightMoods = {
+      clear: ["#080d1a", "#0d1b3a", "#101d44"],
+      partly: ["#0a0f1e", "#15213d", "#1a2647"],
+      cloudy: ["#0c0f14", "#1a212b", "#141a22"],
+      fog: ["#10131a", "#1c222b", "#161b22"],
+      rain: ["#070f18", "#0d2233", "#123047"],
+      snow: ["#0a121c", "#16263a", "#1d3350"],
+      thunder: ["#140c1e", "#241338", "#15082b"],
+    };
+    const pick = (isNight ? nightMoods : moods)[type] || moods.clear;
+    const hero = document.getElementById("welcome-hero");
+    if (!hero) return;
+    hero.style.setProperty("--mood-1", pick[0]);
+    hero.style.setProperty("--mood-2", pick[1]);
+    hero.style.setProperty("--mood-3", pick[2]);
+    hero.classList.add("mood-active");
+    hero.dataset.mood = type;
+  }
+
   function updateCardWeatherUI(cityId, weather) {
     const cardData = cityCards[cityId];
     if (!cardData) return;
+    cardData.weatherEl.classList.remove("is-loading");
+    cardData.forecastEl.classList.remove("is-loading");
     const uvColor = getUvColor(weather.uvIndex);
     cardData.weatherEl.innerHTML = `
-      <div class="card-weather-icon">${weather.icon}</div>
+      <div class="card-weather-icon">${svgWeatherIcon(weather.code, weather.isNight, 1)}</div>
       <div class="card-weather-info">
-        <div class="card-weather-temp">${weather.temp}°C</div>
+        <div class="card-weather-temp">${fmtTemp(weather.temp)}</div>
         <div class="card-weather-desc">${weather.desc}</div>
         <div class="card-weather-extra" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 5px; display: flex; gap: 8px; flex-wrap: wrap;">
           <span>🌅 ${formatTime(weather.sunrise)}</span>
@@ -883,11 +1129,20 @@ document.addEventListener("DOMContentLoaded", () => {
         (day) => `
         <div class="card-forecast-day">
           <div class="card-forecast-name">${day.day}</div>
-          <div class="card-forecast-icon">${day.icon}</div>
-          <div class="card-forecast-temp">${day.max}° <span>/${day.min}°</span></div>
+          <div class="card-forecast-icon">${svgWeatherIcon(day.code, false, 0.8)}</div>
+          <div class="card-forecast-temp">${fmtTemp(day.max, false)} <span>/${fmtTemp(day.min, false)}</span></div>
         </div>`,
       )
       .join("");
+
+    // Warn-Rahmen auf der Karte
+    cardData.card.classList.remove("card-alert-warn", "card-alert-severe");
+    if (weather.alert) {
+      cardData.card.classList.add("card-alert-" + weather.alert.level);
+      cardData.card.setAttribute("title", weather.alert.label);
+    } else {
+      cardData.card.removeAttribute("title");
+    }
   }
 
   function updateWeatherStats() {
@@ -1363,6 +1618,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openDetail(city) {
     activeCity = city;
+    localStorage.setItem(LAST_CITY_KEY, city.id);
+    heroMoodApplied = false;
     const url = new URL(window.location);
     url.searchParams.set("city", city.id);
     window.history.pushState({ cityId: city.id }, "", url);
@@ -1386,6 +1643,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.style.overflow = "";
     activeCity = null;
     hourlyContainer.style.display = "none";
+    heroMoodApplied = false;
+    maybeUpdateHeroMood(null);
     const radarSection = document.getElementById("radar-section");
     if (radarSection) radarSection.style.display = "none";
     clearMapLayers();
@@ -1402,18 +1661,155 @@ document.addEventListener("DOMContentLoaded", () => {
     weatherLoading.style.display = "none";
     weatherInfo.style.display = "flex";
     const uvColor = getUvColor(w.uvIndex);
-    weatherIcon.textContent = w.icon;
-    weatherTemp.textContent = w.temp + "°C";
-    weatherDesc.innerHTML = `
-    <div>${w.desc}</div>
-    <div style="margin-top: 8px; font-size: 0.95rem; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; color: var(--text-secondary);">
-      <span style="color:${uvColor}">☀️ UV: ${w.uvIndex !== null ? w.uvIndex : "-"}</span>
-    </div>`;
+    weatherIcon.innerHTML = svgWeatherIcon(w.code, w.isNight, 1);
+    weatherTemp.textContent = fmtTemp(w.temp);
+
+    // Windrichtung als Pfeil/Kompass
+    const windDirTxt = w.windDir != null ? " " + degToCompass(w.windDir) : "";
+
+    // Kachel-Raster mit den Detailwerten
+    const tiles = `
+      <div class="wx-detail-grid">
+        <div class="wx-tile">
+          <div class="wx-tile-icon">🌡️</div>
+          <div class="wx-tile-label">Gefühlt</div>
+          <div class="wx-tile-value">${w.apparent != null ? fmtTemp(w.apparent) : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon" style="color:${uvColor}">☀️</div>
+          <div class="wx-tile-label">UV-Index</div>
+          <div class="wx-tile-value" style="color:${uvColor}">${w.uvIndex != null ? w.uvIndex : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">💧</div>
+          <div class="wx-tile-label">Luftfeuchte</div>
+          <div class="wx-tile-value">${w.humidity != null ? w.humidity + "%" : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">💨</div>
+          <div class="wx-tile-label">Wind</div>
+          <div class="wx-tile-value">${w.wind != null ? w.wind + " km/h" + windDirTxt : "–"}</div>
+        </div>
+      </div>`;
+
+    weatherDesc.innerHTML = `<div class="wx-desc-text">${w.desc}</div>${tiles}`;
+
+    // Unwetterwarnung farblich hervorheben
+    const detailWeather = document.querySelector(".detail-weather");
+    let alertBox = document.getElementById("wx-alert");
+    if (w.alert) {
+      if (!alertBox) {
+        alertBox = document.createElement("div");
+        alertBox.id = "wx-alert";
+        detailWeather.parentNode.insertBefore(alertBox, detailWeather);
+      }
+      alertBox.className = "wx-alert wx-alert-" + w.alert.level;
+      alertBox.innerHTML = `<span class="wx-alert-icon">${w.alert.icon}</span><span class="wx-alert-text">${w.alert.label}</span>`;
+      alertBox.style.display = "flex";
+      detailWeather.classList.add("has-alert", "alert-" + w.alert.level);
+    } else {
+      if (alertBox) alertBox.style.display = "none";
+      detailWeather.classList.remove("has-alert", "alert-warn", "alert-severe");
+    }
+
+    // Wochen-Temperaturkurve
+    if (w.fullForecast) renderTempChart(w.fullForecast);
 
     // Startet die neue Sonnen-Mond-Animation
     if (activeCity) {
       updateSunMoonTracker(w.sunrise, w.sunset, activeCity.timezone);
     }
+  }
+
+  function degToCompass(deg) {
+    const dirs = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+    return dirs[Math.round(deg / 45) % 8];
+  }
+
+  // ===== WOCHEN-TEMPERATURKURVE (SVG-Liniendiagramm) =====
+  function renderTempChart(fc) {
+    const container = document.getElementById("temp-chart-container");
+    if (!container) return;
+    const maxArr = fc.max,
+      minArr = fc.min,
+      timeArr = fc.time;
+    if (!maxArr || maxArr.length < 2) {
+      container.style.display = "none";
+      return;
+    }
+    container.style.display = "block";
+
+    const W = 320,
+      H = 150,
+      padX = 26,
+      padTop = 24,
+      padBottom = 28;
+    const n = maxArr.length;
+    const allVals = [...maxArr, ...minArr];
+    let lo = Math.min(...allVals),
+      hi = Math.max(...allVals);
+    if (lo === hi) {
+      lo -= 1;
+      hi += 1;
+    }
+    const span = hi - lo;
+    const xAt = (i) => padX + (i * (W - 2 * padX)) / (n - 1);
+    const yAt = (v) =>
+      padTop + (1 - (v - lo) / span) * (H - padTop - padBottom);
+
+    const linePath = (arr) =>
+      arr
+        .map(
+          (v, i) =>
+            `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`,
+        )
+        .join(" ");
+    const areaPath =
+      `M${xAt(0).toFixed(1)},${yAt(maxArr[0]).toFixed(1)} ` +
+      maxArr
+        .map((v, i) => `L${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`)
+        .join(" ") +
+      ` L${xAt(n - 1).toFixed(1)},${(H - padBottom).toFixed(1)} L${xAt(0).toFixed(1)},${(H - padBottom).toFixed(1)} Z`;
+
+    const dayLabels = timeArr
+      .map((d, i) => {
+        const name = new Date(d).toLocaleDateString("de-DE", {
+          weekday: "short",
+        });
+        return `<text x="${xAt(i).toFixed(1)}" y="${H - 8}" class="tc-axis" text-anchor="middle">${name}</text>`;
+      })
+      .join("");
+
+    const maxPoints = maxArr
+      .map(
+        (v, i) =>
+          `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" class="tc-dot-max"/>` +
+          `<text x="${xAt(i).toFixed(1)}" y="${(yAt(v) - 7).toFixed(1)}" class="tc-val tc-val-max" text-anchor="middle">${convTemp(v)}°</text>`,
+      )
+      .join("");
+    const minPoints = minArr
+      .map(
+        (v, i) =>
+          `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="2.5" class="tc-dot-min"/>` +
+          `<text x="${xAt(i).toFixed(1)}" y="${(yAt(v) + 14).toFixed(1)}" class="tc-val tc-val-min" text-anchor="middle">${convTemp(v)}°</text>`,
+      )
+      .join("");
+
+    container.querySelector(".temp-chart-svg-wrap").innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" class="temp-chart-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="tcArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#tcArea)"/>
+        <path d="${linePath(minArr)}" class="tc-line tc-line-min"/>
+        <path d="${linePath(maxArr)}" class="tc-line tc-line-max"/>
+        ${minPoints}
+        ${maxPoints}
+        ${dayLabels}
+      </svg>`;
   }
 
   function renderForecast(forecast, cityId) {
@@ -1429,7 +1825,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const dayName = new Date(date).toLocaleDateString("de-DE", {
         weekday: "short",
       });
-      const icon = getWeatherIcon(codes[i], false);
+      const icon = svgWeatherIcon(codes[i], false, 1.1);
       const max = Math.round(maxTemps[i]);
       const min = Math.round(minTemps[i]);
 
@@ -1439,7 +1835,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el.innerHTML = `
         <div class="forecast-day-name">${dayName}</div>
         <div class="forecast-icon">${icon}</div>
-        <div class="forecast-temps"><span>${max}°</span> <span>/${min}°</span></div>`;
+        <div class="forecast-temps"><span>${fmtTemp(max, false)}</span> <span>/${fmtTemp(min, false)}</span></div>`;
       el.addEventListener("click", () => showHourlyForecast(cityId, date, el));
       forecastScroll.appendChild(el);
     }
@@ -1492,7 +1888,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : null;
 
         const isNightHour = isNightTimeForHour(timeStr, sunrise, sunset);
-        const icon = getWeatherIcon(wCode, isNightHour);
+        const icon = svgWeatherIcon(wCode, isNightHour, 0.95);
 
         // Farbabstufung der Regenwahrscheinlichkeit
         let precipClass = "low";
@@ -1507,7 +1903,7 @@ document.addEventListener("DOMContentLoaded", () => {
         el.innerHTML = `
           <div class="hourly-hour">${String(hour).padStart(2, "0")}:00</div>
           <div class="hourly-icon">${icon}</div>
-          <div class="hourly-temp">${temp}°</div>
+          <div class="hourly-temp">${fmtTemp(temp, false)}</div>
           <div class="hourly-precip ${precipClass}">
             <span class="precip-drop">💧</span>${precipProb != null ? precipProb + "%" : "–"}
           </div>`;
@@ -1587,6 +1983,33 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("theme", isLight ? "light" : "dark");
     themeBtn.textContent = isLight ? "☀️" : "🌙";
   });
+
+  // ===== EINHEITEN-TOGGLE (°C / °F) =====
+  const unitBtn = document.getElementById("unit-toggle");
+  if (unitBtn) {
+    const renderUnitBtn = () => {
+      unitBtn.innerHTML = `<span class="${tempUnit === "C" ? "active" : ""}">°C</span><span class="${tempUnit === "F" ? "active" : ""}">°F</span>`;
+    };
+    renderUnitBtn();
+    unitBtn.addEventListener("click", () => {
+      tempUnit = tempUnit === "C" ? "F" : "C";
+      localStorage.setItem(UNIT_KEY, tempUnit);
+      renderUnitBtn();
+      // Alle bereits geladenen Karten neu zeichnen
+      Object.keys(weatherCache).forEach((id) => {
+        if (cityCards[id]) updateCardWeatherUI(id, weatherCache[id]);
+      });
+      // Offene Detailansicht aktualisieren
+      if (activeCity && weatherCache[activeCity.id]) {
+        const w = weatherCache[activeCity.id];
+        updateDetailWeatherUI(w);
+        renderForecast(w.fullForecast, activeCity.id);
+        // ggf. geöffnete Stundenansicht neu zeichnen
+        const sel = document.querySelector(".forecast-day.selected");
+        if (sel) showHourlyForecast(activeCity.id, sel.dataset.date, sel);
+      }
+    });
+  }
 
   const radarPrevBtn = document.getElementById("radar-prev");
   const radarNextBtn = document.getElementById("radar-next");

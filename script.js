@@ -254,10 +254,45 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     const uvToday = daily.uv_index_max ? daily.uv_index_max[0] : null;
-    const apparent =
+
+    // Fallback: Wenn der "current"-Block einzelne Werte nicht liefert,
+    // greifen wir auf den passenden Stunden-Eintrag (hourly) zurück.
+    // So sind "Gefühlt" und "Luftfeuchte" auch dann gefüllt, wenn die
+    // API sie im current-Objekt nicht mitschickt.
+    let hourIdx = -1;
+    if (hourly && Array.isArray(hourly.time)) {
+      const refIso = (cur && cur.time) || (current && current.time) || null;
+      if (refIso) {
+        // exakte Übereinstimmung der Stunde suchen
+        const refHour = refIso.slice(0, 13); // "YYYY-MM-DDTHH"
+        hourIdx = hourly.time.findIndex((t) => t.slice(0, 13) === refHour);
+      }
+      if (hourIdx === -1) {
+        // Nächstgelegene vergangene Stunde als Näherung
+        const nowMs = Date.now();
+        let best = Infinity;
+        hourly.time.forEach((t, i) => {
+          const diff = Math.abs(new Date(t).getTime() - nowMs);
+          if (diff < best) {
+            best = diff;
+            hourIdx = i;
+          }
+        });
+      }
+    }
+    const hourlyVal = (arr) =>
+      hourIdx > -1 && arr && arr[hourIdx] != null ? arr[hourIdx] : null;
+
+    const apparentRaw =
       cur.apparent_temperature != null
-        ? Math.round(cur.apparent_temperature)
-        : null;
+        ? cur.apparent_temperature
+        : hourlyVal(hourly && hourly.apparent_temperature);
+    const apparent = apparentRaw != null ? Math.round(apparentRaw) : null;
+
+    const humidityRaw =
+      cur.relative_humidity_2m != null
+        ? cur.relative_humidity_2m
+        : hourlyVal(hourly && hourly.relative_humidity_2m);
     const windSpeed =
       cur.wind_speed_10m != null
         ? Math.round(cur.wind_speed_10m)
@@ -272,10 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
       icon: getWeatherIcon(current.weathercode, isNight),
       isNight: isNight,
       apparent: apparent,
-      humidity:
-        cur.relative_humidity_2m != null
-          ? Math.round(cur.relative_humidity_2m)
-          : null,
+      humidity: humidityRaw != null ? Math.round(humidityRaw) : null,
       wind: windSpeed,
       windDir: cur.wind_direction_10m != null ? cur.wind_direction_10m : null,
       alert: getWeatherAlert(

@@ -1042,12 +1042,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildQuickAccess() {
     const popularCities = [
       "aachen",
-      "berlin",
-      "london",
+      "munich",
       "newyork",
       "tokyo",
       "sydney",
-      "dubai",
     ];
     quickCities.innerHTML = "";
     popularCities.forEach((cityId) => {

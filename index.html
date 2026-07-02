@@ -192,13 +192,6 @@
     </footer>
 
     <div class="floating-controls">
-      <button
-        id="push-toggle"
-        class="push-toggle-btn"
-        title="Benachrichtigungen aktivieren"
-      >
-        🔕
-      </button>
       <button id="unit-toggle" class="unit-toggle-btn" title="Einheit wechseln">
         <span class="active">°C</span><span>°F</span>
       </button>
@@ -218,27 +211,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-      document.getElementById("push-toggle")?.addEventListener("click", () => {
-        if (typeof window.enableWeltinfosPush === "function") {
-          window.enableWeltinfosPush();
-        } else {
-          alert(
-            "Benachrichtigungen werden von diesem Browser nicht unterstützt.",
-          );
-        }
-      });
-
-      // Button-Zustand beim Laden setzen
-      if ("Notification" in window && Notification.permission === "granted") {
-        const b = document.getElementById("push-toggle");
-        if (b) {
-          b.textContent = "🔔";
-          b.classList.add("active");
-          b.title = "Benachrichtigungen aktiv";
-        }
-      }
-    </script>
     <script src="script.js"></script>
   </body>
 </html>

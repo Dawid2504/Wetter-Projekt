@@ -1040,13 +1040,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dateOptions = { weekday: "short", day: "2-digit", month: "2-digit" };
 
   function buildQuickAccess() {
-    const popularCities = [
-      "aachen",
-      "munich",
-      "newyork",
-      "tokyo",
-      "sydney",
-    ];
+    const popularCities = ["aachen", "munich", "newyork", "tokyo", "sydney"];
     quickCities.innerHTML = "";
     popularCities.forEach((cityId) => {
       const city = cityCards[cityId];
@@ -2206,4 +2200,137 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     });
   }
+  // ============================================================
+  //  PUSH-BENACHRICHTIGUNGEN – Einfügen in deine bestehende script.js
+  //  --------------------------------------------------------------
+  //  Diesen kompletten Block INNERHALB des
+  //  document.addEventListener("DOMContentLoaded", () => { ... })
+  //  einfügen, am besten weit unten, kurz vor der schließenden }).
+  //
+  //  Du musst nur die zwei markierten Werte unten anpassen:
+  //    1. VAPID_PUBLIC_KEY  (bekommst du beim Schlüssel-Erzeugen, siehe README)
+  //    2. FIREBASE_DB_URL   (deine Firebase-Realtime-Database-URL)
+  // ============================================================
+
+  (function initPush() {
+    // ====== HIER ANPASSEN ======
+    const VAPID_PUBLIC_KEY =
+      "BJUU3OvJ8U1iLPrm1cHb8iylbZtCYzeRG2Z1z3Oe9tDLWzEg_DXMjLDTecUGLDGxY7LsWDW2QZJIeR-PfdwIgjM";
+    const FIREBASE_DB_URL =
+      "https://wetter-190b9-default-rtdb.europe-west1.firebasedatabase.app"; // ohne / am Ende
+    // ============================
+
+    // Push wird nicht von allen Browsern unterstützt (z. B. iOS nur als
+    // installierte PWA). Wenn nicht unterstützt, brechen wir still ab.
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return;
+    }
+
+    // VAPID-Key muss von Base64URL in ein Uint8Array umgewandelt werden,
+    // das verlangt die Push-API so.
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+      const raw = atob(base64);
+      const output = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+      return output;
+    }
+
+    // Speichert das Abo in Firebase. Als Schlüssel nehmen wir einen Hash
+    // des Endpoints, damit dasselbe Gerät nicht doppelt landet.
+    async function saveSubscription(subscription) {
+      // aktuelle Favoriten mitschicken – der Workflow prüft nur diese Städte
+      let favs = [];
+      try {
+        favs = JSON.parse(
+          localStorage.getItem("weltinfos_favorites_v2") || "[]",
+        );
+      } catch (e) {
+        favs = [];
+      }
+
+      const key = await hashEndpoint(subscription.endpoint);
+      const payload = {
+        subscription: subscription.toJSON(),
+        favorites: favs,
+        updated: Date.now(),
+      };
+
+      await fetch(`${FIREBASE_DB_URL}/subscriptions/${key}.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    // Kleiner Hash, um aus dem langen Endpoint einen kurzen DB-Schlüssel zu machen.
+    async function hashEndpoint(endpoint) {
+      const buf = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(endpoint),
+      );
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("")
+        .slice(0, 24);
+    }
+
+    // Registriert den Service Worker und – falls erlaubt – das Push-Abo.
+    async function register() {
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        // Falls schon eine Erlaubnis vorliegt, gleich abonnieren.
+        if (Notification.permission === "granted") {
+          await subscribe(reg);
+        }
+      } catch (e) {
+        console.warn("Service Worker Registrierung fehlgeschlagen:", e);
+      }
+    }
+
+    async function subscribe(reg) {
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      await saveSubscription(sub);
+    }
+
+    // Wird vom Glocken-Button aufgerufen (siehe HTML-Snippet).
+    async function enablePush() {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("Benachrichtigungen wurden nicht erlaubt.");
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      await subscribe(reg);
+      const btn = document.getElementById("push-toggle");
+      if (btn) {
+        btn.textContent = "🔔";
+        btn.title = "Benachrichtigungen aktiv";
+        btn.classList.add("active");
+      }
+    }
+
+    // Nach außen verfügbar machen, damit der Button ihn aufrufen kann.
+    window.enableWeltinfosPush = enablePush;
+
+    register();
+
+    // Wenn Favoriten sich ändern, aktualisieren wir das Abo,
+    // damit der Workflow die richtigen Städte prüft.
+    window.updatePushFavorites = async function () {
+      if (Notification.permission !== "granted") return;
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await saveSubscription(sub);
+    };
+  })();
 });

@@ -1,0 +1,14 @@
+{
+  "name": "weltinfos-push-server",
+  "version": "1.0.0",
+  "description": "Prüft stündlich Wetterwarnungen und sendet Web-Push-Benachrichtigungen",
+  "type": "module",
+  "main": "send-alerts.js",
+  "scripts": {
+    "generate-keys": "web-push generate-vapid-keys",
+    "start": "node send-alerts.js"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

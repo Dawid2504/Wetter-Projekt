@@ -2368,3 +2368,29 @@ body.light-mode .wx-tile {
 .detail-zone {
   font-weight: 600;
 }
+.push-toggle-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg, #1e1e1e);
+  color: var(--text-primary, #fff);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.15s ease,
+    background 0.2s ease;
+}
+
+.push-toggle-btn:hover {
+  transform: scale(1.08);
+}
+
+.push-toggle-btn.active {
+  background: var(--accent, #00ff99);
+  color: #06231a;
+}

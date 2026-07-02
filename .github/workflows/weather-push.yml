@@ -1,0 +1,37 @@
+name: Wetter-Warnungen senden
+
+on:
+  schedule:
+    # Warnungen: alle 3 Stunden (Zeiten in UTC).
+    - cron: "5 */3 * * *"
+    # Morgen-Vorschau: 5:00 und 6:00 UTC decken 7 Uhr deutscher Zeit
+    # ganzjährig ab (Sommerzeit = UTC+2, Winterzeit = UTC+1).
+    # Das Skript entscheidet selbst, ob lokal wirklich 7 Uhr ist.
+    - cron: "0 5 * * *"
+    - cron: "0 6 * * *"
+  workflow_dispatch: {} # erlaubt manuelles Auslösen zum Testen
+
+jobs:
+  send-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Abhaengigkeiten installieren
+        working-directory: push-server
+        run: npm install
+
+      - name: Warnungen pruefen und senden
+        working-directory: push-server
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
+        run: node send-alerts.js

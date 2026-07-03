@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "de.dawidmakowski.wetter",
-      "sha256_cert_fingerprints": ["HIER_DEINEN_SHA256_FINGERPRINT_EINTRAGEN"]
+      "sha256_cert_fingerprints": ["7E:D7:2B:D8:04:2F:8E:42:31:25:ED:FA:9F:C6:78:31:3F:07:87:4B:C7:7B:D6:D0:DF:C6:FC:21:EC:F8:4B:10"]
     }
   }
 ]

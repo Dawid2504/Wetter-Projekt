@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weltinfos - Wetter weltweit</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0f0d" />
+    <meta
+      name="description"
+      content="Aktuelle Wettervorhersagen und 7-Tage-Trends für Städte weltweit."
+    />
+
+    <!-- iOS / Apple -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Wetter" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -278,6 +297,22 @@
 
     <footer class="site-footer">
       <div class="footer-container">
+        <div class="app-download">
+          <div class="app-download-icon">
+            <img src="icon-192.png" alt="App-Icon" width="64" height="64" />
+          </div>
+          <div class="app-download-text">
+            <strong>Wetter weltweit als Android-App</strong>
+            <span
+              >Direkt aufs Handy – schnell, offline-fähig, ohne Play
+              Store.</span
+            >
+          </div>
+          <a href="app/wetter-weltweit.apk" class="app-download-btn" download>
+            ⬇️ APK herunterladen
+          </a>
+        </div>
+
         <div class="footer-links">
           <a href="#" id="link-impressum">Impressum</a>
           <a href="#" id="link-datenschutz">Datenschutz</a>
@@ -344,5 +379,18 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
+
+    <!-- PWA: Service Worker registrieren -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .catch((err) =>
+              console.warn("SW-Registrierung fehlgeschlagen:", err),
+            );
+        });
+      }
+    </script>
   </body>
 </html>

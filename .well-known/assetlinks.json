@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "de.dawidmakowski.wetter",
+      "sha256_cert_fingerprints": ["HIER_DEINEN_SHA256_FINGERPRINT_EINTRAGEN"]
+    }
+  }
+]

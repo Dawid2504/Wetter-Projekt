@@ -26,8 +26,23 @@
                 type="text"
                 id="search-input"
                 placeholder="Stadt suchen..."
+                aria-label="Stadt suchen"
               />
-              <button id="clear-btn" class="clear-btn">✕</button>
+              <button
+                id="geo-btn"
+                class="geo-btn"
+                title="Mein Standort"
+                aria-label="Meinen Standort verwenden"
+              >
+                📍
+              </button>
+              <button
+                id="clear-btn"
+                class="clear-btn"
+                aria-label="Suche löschen"
+              >
+                ✕
+              </button>
             </div>
             <div class="weather-stat">
               <div class="weather-stat-icon">☀️</div>
@@ -77,8 +92,21 @@
     </div>
 
     <div id="detail-overlay" class="detail-overlay">
-      <button id="detail-close" class="detail-close">← Zurück</button>
-      <button id="detail-star-btn" class="detail-star-btn">☆</button>
+      <button
+        id="detail-close"
+        class="detail-close"
+        aria-label="Zurück zur Übersicht"
+      >
+        ← Zurück
+      </button>
+      <button
+        id="detail-star-btn"
+        class="detail-star-btn"
+        aria-label="Als Favorit speichern"
+        aria-pressed="false"
+      >
+        ☆
+      </button>
 
       <div class="detail-content">
         <div id="detail-zone" class="detail-zone"></div>
@@ -108,6 +136,70 @@
                 <span id="tracker-start">00:00</span>
                 <span id="tracker-end">00:00</span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="minutely-banner"
+          class="minutely-banner"
+          style="display: none"
+          role="status"
+        >
+          <span class="minutely-icon" id="minutely-icon">🌧️</span>
+          <span class="minutely-text" id="minutely-text"></span>
+        </div>
+
+        <div id="air-section" class="air-section" style="display: none">
+          <div class="air-title" id="air-title">🌬️ Luftqualität & Pollen</div>
+          <div class="air-grid">
+            <div class="air-card" id="air-aqi-card">
+              <div class="air-card-head">
+                <span class="air-card-icon">🌫️</span>
+                <span class="air-card-label" id="air-aqi-label"
+                  >Luftqualität (AQI)</span
+                >
+              </div>
+              <div class="air-gauge">
+                <div class="air-gauge-track">
+                  <div class="air-gauge-fill" id="air-aqi-fill"></div>
+                </div>
+                <div class="air-gauge-value" id="air-aqi-value">–</div>
+              </div>
+              <div class="air-aqi-cat" id="air-aqi-cat">–</div>
+              <div class="air-pm-row">
+                <span class="air-pm" id="air-pm25">PM2.5 –</span>
+                <span class="air-pm" id="air-pm10">PM10 –</span>
+              </div>
+            </div>
+
+            <div class="air-card" id="air-pollen-card">
+              <div class="air-card-head">
+                <span class="air-card-icon">🌸</span>
+                <span class="air-card-label" id="air-pollen-label"
+                  >Pollenflug</span
+                >
+              </div>
+              <div class="pollen-list" id="pollen-list"></div>
+              <div class="pollen-empty" id="pollen-empty" style="display: none">
+                Aktuell keine relevanten Pollen.
+              </div>
+            </div>
+
+            <div class="air-card" id="air-moon-card">
+              <div class="air-card-head">
+                <span class="air-card-icon">🌙</span>
+                <span class="air-card-label" id="air-moon-label"
+                  >Mondphase</span
+                >
+              </div>
+              <div class="moon-visual">
+                <div class="moon-disc" id="moon-disc">
+                  <div class="moon-shadow" id="moon-shadow"></div>
+                </div>
+              </div>
+              <div class="moon-phase-name" id="moon-phase-name">–</div>
+              <div class="moon-illum" id="moon-illum">–</div>
             </div>
           </div>
         </div>
@@ -150,14 +242,35 @@
           <div class="radar-tabs">
             <button class="radar-tab active" data-layer="rain">🌧️ Regen</button>
             <button class="radar-tab" data-layer="clouds">☁️ Wolken</button>
+            <button class="radar-tab" data-layer="wind">💨 Wind</button>
             <button class="radar-tab" data-layer="details">📍 Umgebung</button>
           </div>
           <div id="radar-map"></div>
           <div class="radar-controls">
-            <button id="radar-prev" class="radar-btn">⏮️</button>
-            <button id="radar-play" class="radar-btn">▶️</button>
-            <button id="radar-next" class="radar-btn">⏭️</button>
-            <div id="radar-time" class="radar-time-label">--:--</div>
+            <button
+              id="radar-prev"
+              class="radar-btn"
+              aria-label="Vorheriges Bild"
+            >
+              ⏮️
+            </button>
+            <button
+              id="radar-play"
+              class="radar-btn"
+              aria-label="Animation abspielen"
+            >
+              ▶️
+            </button>
+            <button
+              id="radar-next"
+              class="radar-btn"
+              aria-label="Nächstes Bild"
+            >
+              ⏭️
+            </button>
+            <div id="radar-time" class="radar-time-label" aria-live="polite">
+              --:--
+            </div>
           </div>
         </div>
       </div>
@@ -192,10 +305,29 @@
     </footer>
 
     <div class="floating-controls">
-      <button id="unit-toggle" class="unit-toggle-btn" title="Einheit wechseln">
+      <button
+        id="lang-toggle"
+        class="lang-toggle-btn"
+        title="Sprache wechseln"
+        aria-label="Sprache wechseln"
+      >
+        <span class="active">DE</span><span>EN</span>
+      </button>
+      <button
+        id="unit-toggle"
+        class="unit-toggle-btn"
+        title="Einheit wechseln"
+        aria-label="Temperatureinheit wechseln"
+      >
         <span class="active">°C</span><span>°F</span>
       </button>
-      <button id="theme-toggle" class="theme-toggle-btn">🌙</button>
+      <button
+        id="theme-toggle"
+        class="theme-toggle-btn"
+        aria-label="Hell-/Dunkelmodus wechseln"
+      >
+        🌙
+      </button>
     </div>
 
     <div class="modal">

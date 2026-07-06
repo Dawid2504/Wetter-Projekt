@@ -2535,8 +2535,32 @@ document.addEventListener("DOMContentLoaded", () => {
     hourlyTitle.textContent = `${t("hourlyTitle")} – ${new Date(targetDate).toLocaleDateString(loc(), { weekday: "long", day: "2-digit", month: "long" })}`;
     hourlyScroll.innerHTML = "";
 
-    const nowHour = new Date().getHours();
-    const todayDateStr = new Date().toISOString().split("T")[0];
+    // Aktuelle Zeit in der ZEITZONE DER STADT bestimmen (nicht die des Geräts),
+    // damit vergangene Stunden korrekt anhand der lokalen Ortszeit ausgeblendet werden.
+    const cityTz =
+      (activeCity && activeCity.timezone) ||
+      (weather && weather.timezone) ||
+      undefined;
+    const nowRef = now();
+    let todayDateStr;
+    let nowHour;
+    try {
+      // en-CA liefert das Format "YYYY-MM-DD"
+      todayDateStr = nowRef.toLocaleDateString("en-CA", { timeZone: cityTz });
+      nowHour =
+        parseInt(
+          nowRef.toLocaleTimeString("en-GB", {
+            timeZone: cityTz,
+            hour: "2-digit",
+            hour12: false,
+          }),
+          10,
+        ) % 24; // "24:00" bei Mitternacht auf 0 normalisieren
+    } catch (e) {
+      // Fallback: Gerätezeit
+      todayDateStr = nowRef.toISOString().split("T")[0];
+      nowHour = nowRef.getHours();
+    }
     const isToday = targetDate === todayDateStr;
 
     for (let i = 0; i < hourly.time.length; i++) {

@@ -340,6 +340,14 @@
 
     <div class="floating-controls">
       <button
+        id="push-toggle"
+        class="theme-toggle-btn"
+        title="Benachrichtigungen aktivieren"
+        aria-label="Push-Benachrichtigungen aktivieren"
+      >
+        🔔
+      </button>
+      <button
         id="lang-toggle"
         class="lang-toggle-btn"
         title="Sprache wechseln"
@@ -375,7 +383,35 @@
         </div>
       </div>
     </div>
+    <script type="module">
+      // Import the functions you need from the SDKs you need
 
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+
+      // TODO: Add SDKs for Firebase products that you want to use
+
+      // https://firebase.google.com/docs/web/setup#available-libraries
+
+      // Your web app's Firebase configuration
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDaltO2FJJjTXxbXfM6MNhr6xmIzjVpmh4",
+
+        authDomain: "wetter-push-c106c.firebaseapp.com",
+
+        projectId: "wetter-push-c106c",
+
+        storageBucket: "wetter-push-c106c.firebasestorage.app",
+
+        messagingSenderId: "932619386336",
+
+        appId: "1:932619386336:web:ab59e2a55f9dc84153bf85",
+      };
+
+      // Initialize Firebase
+
+      const app = initializeApp(firebaseConfig);
+    </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 

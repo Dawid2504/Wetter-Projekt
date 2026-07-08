@@ -1,11 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const searchWrapper = document.querySelector(".search-wrapper");
-  const weatherOverview = document.querySelector(".welcome-weather-overview");
-  if (searchWrapper && weatherOverview) {
-    weatherOverview.innerHTML = "";
-    weatherOverview.appendChild(searchWrapper);
-  }
-
   const container = document.getElementById("clocks-container");
   const favContainer = document.getElementById("favorites-container");
   const favSection = document.getElementById("favorites-section");
@@ -32,67 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const hourlyContainer = document.getElementById("hourly-container");
   const hourlyScroll = document.getElementById("hourly-scroll");
   const hourlyTitle = document.getElementById("hourly-title");
-  const statSunny = document.getElementById("stat-sunny");
-  const statRain = document.getElementById("stat-rain");
-  const statCloudy = document.getElementById("stat-cloudy");
 
   const searchCache = new Set();
   let timeOffset = 0;
   let searchTimeout = null;
   let filterTimeout = null;
-
-  const WMO_ICONS_DAY = {
-    0: "☀️",
-    1: "🌤️",
-    2: "⛅",
-    3: "☁️",
-    45: "🌫️",
-    48: "🌫️",
-    51: "🌦️",
-    53: "🌦️",
-    55: "🌧️",
-    61: "🌧️",
-    63: "🌧️",
-    65: "🌧️",
-    71: "🌨️",
-    73: "🌨️",
-    75: "❄️",
-    80: "🌦️",
-    81: "🌧️",
-    82: "⛈️",
-    95: "⛈️",
-    96: "⛈️",
-    99: "⛈️",
-  };
-
-  const WMO_ICONS_NIGHT = {
-    0: "🌙",
-    1: "🌙",
-    2: "☁️",
-    3: "☁️",
-    45: "🌫️",
-    48: "🌫️",
-    51: "🌧️",
-    53: "🌧️",
-    55: "🌧️",
-    61: "🌧️",
-    63: "🌧️",
-    65: "🌧️",
-    71: "🌨️",
-    73: "🌨️",
-    75: "❄️",
-    80: "🌧️",
-    81: "🌧️",
-    82: "⛈️",
-    95: "⛈️",
-    96: "⛈️",
-    99: "⛈️",
-  };
-
-  function getWeatherIcon(code, isNight) {
-    if (isNight) return WMO_ICONS_NIGHT[code] || "🌡️";
-    return WMO_ICONS_DAY[code] || "🌡️";
-  }
 
   // ===== SPRACHE (DE / EN) =====
   const LANG_KEY = "weltinfos_lang";
@@ -102,9 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
     de: {
       subtitle: "Aktuelle Vorhersagen & 7-Tage-Trends",
       searchPlaceholder: "Stadt suchen...",
-      statSunny: "Sonnig",
-      statRain: "Regen",
-      statCloudy: "Bewölkt",
       quickTitle: "⚡ Schnellzugriff",
       hint: "💡 Tipp: Klicke auf eine Stadt für Details & 7-Tage-Vorhersage!",
       favTitle: "⭐ Deine Favoriten",
@@ -146,9 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
     en: {
       subtitle: "Current forecasts & 7-day trends",
       searchPlaceholder: "Search city...",
-      statSunny: "Sunny",
-      statRain: "Rain",
-      statCloudy: "Cloudy",
       quickTitle: "⚡ Quick access",
       hint: "💡 Tip: Tap a city for details & 7-day forecast!",
       favTitle: "⭐ Your favourites",
@@ -403,7 +334,6 @@ document.addEventListener("DOMContentLoaded", () => {
       code: current.weathercode,
       temp: Math.round(current.temperature),
       desc: WMO_CODES[current.weathercode] || "Unbekannt",
-      icon: getWeatherIcon(current.weathercode, isNight),
       isNight: isNight,
       apparent: apparent,
       humidity: humidityRaw != null ? Math.round(humidityRaw) : null,
@@ -438,7 +368,6 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       hourly: hourly,
       minutely15: weatherData.minutely_15 || null,
-      windDeg: cur.wind_direction_10m != null ? cur.wind_direction_10m : null,
     };
 
     weatherCache[city.id] = weather;
@@ -1303,7 +1232,6 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const weather = await fetchWeather(city);
       updateCardWeatherUI(city.id, weather);
-      updateWeatherStats();
       maybeUpdateHeroMood(city.id);
     } catch (error) {
       console.warn("Wetter für " + city.name + " fehlgeschlagen: ", error);
@@ -1402,24 +1330,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       cardData.card.removeAttribute("title");
     }
-  }
-
-  function updateWeatherStats() {
-    let sunny = 0,
-      rain = 0,
-      cloudy = 0;
-    const sunnyCodes = [0, 1],
-      rainCodes = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99],
-      cloudyCodes = [2, 3, 45, 48];
-    Object.values(weatherCache).forEach((w) => {
-      const code = parseInt(w.code);
-      if (sunnyCodes.includes(code)) sunny++;
-      else if (rainCodes.includes(code)) rain++;
-      else if (cloudyCodes.includes(code)) cloudy++;
-    });
-    if (statSunny) statSunny.textContent = sunny;
-    if (statRain) statRain.textContent = rain;
-    if (statCloudy) statCloudy.textContent = cloudy;
   }
 
   function loadAllVisibleWeather() {
@@ -1756,7 +1666,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildMarkerPopup(city) {
     const weather = weatherCache[city.id];
     return `<b>${city.name}</b><br>${
-      weather ? weather.temp + "°C " + weather.desc : "Lädt..."
+      weather ? fmtTemp(weather.temp) + " " + weather.desc : "Lädt..."
     }`;
   }
 
@@ -1897,7 +1807,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (!activeCity || activeMapLayer !== "wind") return;
       const speed = w.wind != null ? w.wind : 0;
-      const deg = w.windDeg != null ? w.windDeg : 0;
+      const deg = w.windDir != null ? w.windDir : 0;
       // Farbe & Größe skalieren mit Windstärke
       const col =
         speed >= 50
@@ -1972,8 +1882,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .slice(0, 8);
     nearbyCities.forEach((c) => {
       const w = weatherCache[c.id];
-      const temp = w ? w.temp + "°" : "?";
-      const icon = w ? w.icon : "🌡️";
+      const temp = w ? fmtTemp(w.temp) : "?";
 
       const marker = L.circleMarker([c.lat, c.lon], {
         radius: 10,
@@ -1985,7 +1894,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }).addTo(radarMap);
 
       marker.bindPopup(
-        `<b>${c.country} ${c.name}</b><br>${icon} ${temp} ${w ? w.desc : ""}`,
+        `<b>${c.country} ${c.name}</b><br>${temp} ${w ? w.desc : ""}`,
       );
       detailMarkers.push(marker);
 
@@ -2717,12 +2626,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const subtitle = document.querySelector("header p");
     if (subtitle) subtitle.textContent = t("subtitle");
     if (searchInput) searchInput.placeholder = t("searchPlaceholder");
-
-    // Wetter-Statistik-Labels (per Klassenselektor)
-    const statLabels = document.querySelectorAll(".weather-stat-label");
-    if (statLabels[0]) statLabels[0].textContent = t("statSunny");
-    if (statLabels[1]) statLabels[1].textContent = t("statRain");
-    if (statLabels[2]) statLabels[2].textContent = t("statCloudy");
 
     const quickTitle = document.querySelector(".quick-title");
     if (quickTitle) quickTitle.textContent = t("quickTitle");

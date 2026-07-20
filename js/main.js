@@ -72,7 +72,7 @@ import {
   // Holt die Wetterdaten einer Stadt von der API und baut das Cache-Objekt.
   // Wird sowohl von der Detailansicht als auch von den Karten genutzt.
   async function fetchWeather(city) {
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m&minutely_15=precipitation&timezone=auto`;
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m,pressure_msl,precipitation&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m,dew_point_2m,visibility,pressure_msl,precipitation&minutely_15=precipitation&timezone=auto`;
     const weatherRes = await fetch(weatherUrl);
     const weatherData = await weatherRes.json();
     const current = weatherData.current_weather;
@@ -133,6 +133,25 @@ import {
           ? Math.round(current.windspeed)
           : null;
 
+    // Luftdruck (hPa) & Niederschlagsmenge (mm) kommen aus dem current-Block,
+    // Taupunkt (°C) & Sichtweite (m) nur aus hourly → gleicher Fallback wie oben.
+    const pressureRaw =
+      cur.pressure_msl != null
+        ? cur.pressure_msl
+        : hourlyVal(hourly && hourly.pressure_msl);
+    const dewPointRaw =
+      cur.dew_point_2m != null
+        ? cur.dew_point_2m
+        : hourlyVal(hourly && hourly.dew_point_2m);
+    const visibilityRaw =
+      cur.visibility != null
+        ? cur.visibility
+        : hourlyVal(hourly && hourly.visibility);
+    const precipRaw =
+      cur.precipitation != null
+        ? cur.precipitation
+        : hourlyVal(hourly && hourly.precipitation);
+
     const weather = {
       code: current.weathercode,
       temp: Math.round(current.temperature),
@@ -142,6 +161,10 @@ import {
       humidity: humidityRaw != null ? Math.round(humidityRaw) : null,
       wind: windSpeed,
       windDir: cur.wind_direction_10m != null ? cur.wind_direction_10m : null,
+      pressure: pressureRaw != null ? Math.round(pressureRaw) : null,
+      dewPoint: dewPointRaw != null ? Math.round(dewPointRaw) : null,
+      visibility: visibilityRaw != null ? visibilityRaw : null,
+      precip: precipRaw != null ? precipRaw : null,
       alert: getWeatherAlert(
         current.weathercode,
         Math.round(current.temperature),
@@ -1313,6 +1336,14 @@ import {
     // Windrichtung als Pfeil/Kompass
     const windDirTxt = w.windDir != null ? " " + degToCompass(w.windDir) : "";
 
+    // Sichtweite lesbar aufbereiten (ab 1 km in km, sonst in m).
+    const visTxt =
+      w.visibility == null
+        ? "–"
+        : w.visibility >= 1000
+          ? Math.round(w.visibility / 1000) + " km"
+          : Math.round(w.visibility) + " m";
+
     // Kachel-Raster mit den Detailwerten
     const tiles = `
       <div class="wx-detail-grid">
@@ -1335,6 +1366,26 @@ import {
           <div class="wx-tile-icon">💨</div>
           <div class="wx-tile-label">${t("tileWind")}</div>
           <div class="wx-tile-value">${w.wind != null ? w.wind + " km/h" + windDirTxt : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">📊</div>
+          <div class="wx-tile-label">${t("tilePressure")}</div>
+          <div class="wx-tile-value">${w.pressure != null ? w.pressure + " hPa" : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">👁️</div>
+          <div class="wx-tile-label">${t("tileVisibility")}</div>
+          <div class="wx-tile-value">${visTxt}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">🌫️</div>
+          <div class="wx-tile-label">${t("tileDewpoint")}</div>
+          <div class="wx-tile-value">${w.dewPoint != null ? fmtTemp(w.dewPoint) : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">🌧️</div>
+          <div class="wx-tile-label">${t("tilePrecip")}</div>
+          <div class="wx-tile-value">${w.precip != null ? w.precip.toFixed(1) + " mm" : "–"}</div>
         </div>
       </div>`;
 

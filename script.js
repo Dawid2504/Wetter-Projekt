@@ -272,11 +272,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m&minutely_15=precipitation&timezone=auto`;
     const weatherRes = await fetch(weatherUrl);
     const weatherData = await weatherRes.json();
-    // Schutz vor fehlerhaften/leeren Antworten (z. B. Rate-Limit der API):
-    // klare Fehlermeldung statt kryptischem TypeError weiter unten.
-    if (!weatherData || !weatherData.current_weather || !weatherData.daily) {
-      throw new Error("Ungültige Wetterdaten für " + city.name);
-    }
     const current = weatherData.current_weather;
     const daily = weatherData.daily;
     const hourly = weatherData.hourly;
@@ -561,7 +556,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function isNightTime(sunrise, sunset, timezone) {
     if (!sunrise || !sunset || !timezone) return false;
     try {
-      const nowInCity = now().toLocaleTimeString("de-DE", {
+      const nowInCity = new Date().toLocaleTimeString("de-DE", {
         timeZone: timezone,
         hour: "2-digit",
         minute: "2-digit",
@@ -2131,7 +2126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let idx = m.time.findIndex((t) => new Date(t).getTime() >= nowMs);
     if (idx === -1) idx = 0;
 
-    // Fenster der nächsten ~75 Min (5 Slots à 15 Min) betrachten
+    // Fenster der nächsten ~60 Min (4 Slots) betrachten
     const horizon = 5;
     const slots = [];
     for (
@@ -2451,7 +2446,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Aktuelle Zeit in der ZEITZONE DER STADT bestimmen (nicht die des Geräts),
     // damit vergangene Stunden korrekt anhand der lokalen Ortszeit ausgeblendet werden.
-    const cityTz = (activeCity && activeCity.timezone) || undefined;
+    const cityTz =
+      (activeCity && activeCity.timezone) ||
+      (weather && weather.timezone) ||
+      undefined;
     const nowRef = now();
     let todayDateStr;
     let nowHour;
@@ -2748,7 +2746,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const sunSetTime = new Date(sunsetISO);
 
     // Aktuelle Zeit in der Zeitzone der ausgewählten Stadt
-    const nowInCityStr = now().toLocaleString("en-US", {
+    const nowInCityStr = new Date().toLocaleString("en-US", {
       timeZone: timezone,
     });
     const cityNow = new Date(nowInCityStr);

@@ -1,15 +1,44 @@
 /* Service Worker für "Wetter weltweit" */
-const CACHE_VERSION = "wetter-v4";
+const CACHE_VERSION = "wetter-v5";
 
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/style.css",
-  "/script.js",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
+
+  // CSS: Sammel-Datei + alle per @import geladenen Module
+  "/style.css",
+  "/css/base.css",
+  "/css/search.css",
+  "/css/cards.css",
+  "/css/hero.css",
+  "/css/detail.css",
+  "/css/radar.css",
+  "/css/footer.css",
+  "/css/responsive.css",
+  "/css/modal.css",
+  "/css/sun-moon.css",
+  "/css/weather-backgrounds.css",
+  "/css/weather-icons.css",
+  "/css/components.css",
+  "/css/temp-chart.css",
+  "/css/controls.css",
+  "/css/extensions.css",
+
+  // JS: Einstiegspunkt + alle importierten ES-Module
+  "/js/main.js",
+  "/js/state.js",
+  "/js/config.js",
+  "/js/units.js",
+  "/js/time.js",
+  "/js/weather-icons.js",
+  "/js/helpers.js",
+  "/js/data/cities.js",
+  "/js/data/i18n.js",
+  "/js/data/weather-codes.js",
 ];
 
 // Domains, die NIE gecacht werden (immer live) – Wetter-, Karten- und Bilddaten

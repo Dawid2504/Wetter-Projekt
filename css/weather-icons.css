@@ -1,0 +1,183 @@
+/* ===== ANIMIERTE SVG-WETTER-ICONS ===== */
+.wx-icon {
+  display: inline-flex;
+  width: var(--wx-size, 1em);
+  height: var(--wx-size, 1em);
+  line-height: 0;
+  vertical-align: middle;
+}
+.wx-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--accent);
+}
+.wx-svg .wx-sun-core {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+.wx-svg .wx-rays line {
+  stroke: var(--accent);
+  stroke-width: 3;
+  transform-origin: 32px 30px;
+  animation: wxRays 9s linear infinite;
+}
+@keyframes wxRays {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.wx-svg .wx-sun-core {
+  animation: wxPulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes wxPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+.wx-svg .wx-cloud path {
+  fill: var(--accent);
+  opacity: 0.9;
+}
+.wx-svg .wx-cloud-dark path {
+  opacity: 0.55;
+}
+.wx-svg .wx-cloud {
+  animation: wxDrift 6s ease-in-out infinite;
+}
+.wx-svg .wx-cloud-front {
+  animation: wxDrift 5s ease-in-out infinite;
+}
+@keyframes wxDrift {
+  0%,
+  100% {
+    transform: translateX(-1.5px);
+  }
+  50% {
+    transform: translateX(1.5px);
+  }
+}
+.wx-svg .wx-moon path {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 5px var(--accent-glow));
+  animation: wxPulse 4s ease-in-out infinite;
+}
+.wx-svg .wx-star {
+  fill: var(--accent);
+  animation: wxTwinkle 2.4s ease-in-out infinite;
+}
+@keyframes wxTwinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+.wx-svg .wx-drop {
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0.85;
+  animation: wxRain 1.1s linear infinite;
+}
+@keyframes wxRain {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+.wx-svg .wx-flake {
+  fill: var(--accent);
+  animation: wxSnow 2.6s linear infinite;
+}
+@keyframes wxSnow {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+}
+.wx-svg .wx-bolt {
+  fill: #ffd23f;
+  filter: drop-shadow(0 0 4px rgba(255, 210, 63, 0.7));
+  animation: wxBolt 2.4s steps(1) infinite;
+}
+@keyframes wxBolt {
+  0%,
+  18%,
+  100% {
+    opacity: 0;
+  }
+  6%,
+  12% {
+    opacity: 1;
+  }
+}
+.wx-svg .wx-fog line {
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0.7;
+  animation: wxFog 4s ease-in-out infinite;
+}
+.wx-svg .wx-fog line:nth-child(2) {
+  animation-delay: 0.6s;
+}
+.wx-svg .wx-fog line:nth-child(3) {
+  animation-delay: 1.2s;
+}
+@keyframes wxFog {
+  0%,
+  100% {
+    transform: translateX(-2px);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateX(2px);
+    opacity: 0.8;
+  }
+}
+
+/* In Karten/Listen die Icon-Container an die SVGs anpassen */
+.card-weather-icon .wx-icon {
+  --wx-size: 2.2em;
+}
+.weather-icon .wx-icon {
+  --wx-size: 3rem;
+}
+.card-forecast-icon .wx-icon {
+  --wx-size: 1.6em;
+}
+.forecast-icon .wx-icon {
+  --wx-size: 1.8em;
+}
+.hourly-icon .wx-icon {
+  --wx-size: 1.4em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-svg * {
+    animation: none !important;
+  }
+}
+

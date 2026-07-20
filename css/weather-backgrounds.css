@@ -1,0 +1,357 @@
+/* ===================================================================== */
+/* =============== ANIMIERTE WETTER-HINTERGRÜNDE ======================== */
+/* ===================================================================== */
+
+.weather-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: background 1.2s ease-in-out;
+}
+
+/* --- Himmel-Farbverläufe je nach Wetter (Tag) --- */
+.scene-clear {
+  background: linear-gradient(180deg, #4a9fe8 0%, #84c5f4 55%, #bfe3ff 100%);
+}
+.scene-partly {
+  background: linear-gradient(180deg, #6aaae0 0%, #9cc7e8 60%, #cfe2f0 100%);
+}
+.scene-cloudy {
+  background: linear-gradient(180deg, #8b9bab 0%, #aab6c2 60%, #c8d0d8 100%);
+}
+.scene-fog {
+  background: linear-gradient(180deg, #9ba4ac 0%, #bcc2c7 60%, #d6d9db 100%);
+}
+.scene-rain {
+  background: linear-gradient(180deg, #4a5a6b 0%, #61707f 55%, #7b8895 100%);
+}
+.scene-thunder {
+  background: linear-gradient(180deg, #2e3640 0%, #3f4854 55%, #535c68 100%);
+}
+.scene-snow {
+  background: linear-gradient(180deg, #8895a6 0%, #aeb9c7 55%, #d2dae3 100%);
+}
+
+/* --- Nacht-Varianten --- */
+.scene-night.scene-clear,
+.scene-night.scene-partly {
+  background: linear-gradient(180deg, #0b1530 0%, #16224a 55%, #243463 100%);
+}
+.scene-night.scene-cloudy,
+.scene-night.scene-fog {
+  background: linear-gradient(180deg, #1b222e 0%, #2a3340 60%, #3a4350 100%);
+}
+.scene-night.scene-rain,
+.scene-night.scene-thunder {
+  background: linear-gradient(180deg, #0e1620 0%, #1c2530 55%, #2a3540 100%);
+}
+.scene-night.scene-snow {
+  background: linear-gradient(180deg, #1d2532 0%, #303b48 55%, #47525f 100%);
+}
+
+/* Eine dezente Abdunkelung, damit der Text immer lesbar bleibt */
+.weather-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.45));
+  pointer-events: none;
+}
+.scene-light::after {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.55)
+  );
+}
+
+/* ---------------- SONNE ---------------- */
+.anim-sun {
+  position: absolute;
+  top: 10%;
+  right: 14%;
+  width: 120px;
+  height: 120px;
+}
+.anim-sun.small {
+  width: 90px;
+  height: 90px;
+  top: 8%;
+  right: 18%;
+}
+.sun-core {
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6d0 0%, #ffd84a 55%, #ffb300 100%);
+  box-shadow: 0 0 50px 12px rgba(255, 210, 70, 0.7);
+  animation: sun-pulse 4s ease-in-out infinite;
+}
+.sun-rays {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    rgba(255, 220, 90, 0.55) 0deg 6deg,
+    transparent 6deg 30deg
+  );
+  -webkit-mask: radial-gradient(transparent 38%, #000 40%);
+  mask: radial-gradient(transparent 38%, #000 40%);
+  animation: sun-spin 40s linear infinite;
+}
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sun-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 50px 12px rgba(255, 210, 70, 0.7);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 70px 20px rgba(255, 210, 70, 0.85);
+  }
+}
+
+/* ---------------- MOND + STERNE ---------------- */
+.anim-moon {
+  position: absolute;
+  top: 9%;
+  right: 15%;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    #fdfbe8 0%,
+    #e8e6cf 60%,
+    #cfcdb4 100%
+  );
+  box-shadow:
+    0 0 40px 8px rgba(245, 245, 220, 0.45),
+    inset -14px -10px 0 -6px rgba(0, 0, 0, 0.12);
+  animation: moon-glow 6s ease-in-out infinite;
+}
+@keyframes moon-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 40px 8px rgba(245, 245, 220, 0.4),
+      inset -14px -10px 0 -6px rgba(0, 0, 0, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 55px 14px rgba(245, 245, 220, 0.6),
+      inset -14px -10px 0 -6px rgba(0, 0, 0, 0.12);
+  }
+}
+.anim-star {
+  position: absolute;
+  width: var(--star-size, 2px);
+  height: var(--star-size, 2px);
+  background: #fff;
+  border-radius: 50%;
+  animation: star-twinkle 3s ease-in-out infinite;
+}
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+/* ---------------- WOLKEN ---------------- */
+.anim-cloud {
+  position: absolute;
+  left: -25%;
+  width: 180px;
+  height: 60px;
+  background: #ffffff;
+  border-radius: 60px;
+  opacity: 0.92;
+  transform: scale(var(--cloud-scale, 1));
+  animation-name: cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.12));
+}
+.anim-cloud::before,
+.anim-cloud::after {
+  content: "";
+  position: absolute;
+  background: #ffffff;
+  border-radius: 50%;
+}
+.anim-cloud::before {
+  width: 80px;
+  height: 80px;
+  top: -34px;
+  left: 28px;
+}
+.anim-cloud::after {
+  width: 60px;
+  height: 60px;
+  top: -22px;
+  right: 30px;
+}
+.anim-cloud.dark,
+.anim-cloud.dark::before,
+.anim-cloud.dark::after {
+  background: #b8c0c9;
+}
+.scene-night .anim-cloud,
+.scene-night .anim-cloud::before,
+.scene-night .anim-cloud::after {
+  background: #4a5360;
+}
+.scene-night .anim-cloud.dark,
+.scene-night .anim-cloud.dark::before,
+.scene-night .anim-cloud.dark::after {
+  background: #353d48;
+}
+@keyframes cloud-drift {
+  from {
+    transform: translateX(0) scale(var(--cloud-scale, 1));
+  }
+  to {
+    transform: translateX(130vw) scale(var(--cloud-scale, 1));
+  }
+}
+
+/* ---------------- NEBEL ---------------- */
+.anim-fog {
+  position: absolute;
+  left: -50%;
+  width: 200%;
+  height: 90px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(230, 230, 230, 0.55),
+    rgba(230, 230, 230, 0.7),
+    rgba(230, 230, 230, 0.55),
+    transparent
+  );
+  filter: blur(8px);
+  animation-name: fog-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.scene-night .anim-fog {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(120, 128, 138, 0.5),
+    rgba(120, 128, 138, 0.65),
+    rgba(120, 128, 138, 0.5),
+    transparent
+  );
+}
+@keyframes fog-drift {
+  0% {
+    transform: translateX(-15%);
+  }
+  50% {
+    transform: translateX(15%);
+  }
+  100% {
+    transform: translateX(-15%);
+  }
+}
+
+/* ---------------- REGEN ---------------- */
+.anim-rain {
+  position: absolute;
+  inset: 0;
+}
+.rain-drop {
+  position: absolute;
+  top: -10%;
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(transparent, rgba(174, 204, 230, 0.85));
+  animation-name: rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes rain-fall {
+  to {
+    transform: translateY(115vh);
+  }
+}
+
+/* ---------------- GEWITTER / BLITZ ---------------- */
+.anim-lightning {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  animation: lightning-flash 7s linear infinite;
+}
+@keyframes lightning-flash {
+  0%,
+  92%,
+  100% {
+    opacity: 0;
+  }
+  93% {
+    opacity: 0.85;
+  }
+  94% {
+    opacity: 0.1;
+  }
+  95% {
+    opacity: 0.7;
+  }
+  96% {
+    opacity: 0;
+  }
+}
+
+/* ---------------- SCHNEE ---------------- */
+.anim-snow {
+  position: absolute;
+  inset: 0;
+}
+.snow-flake {
+  position: absolute;
+  top: -5%;
+  color: #ffffff;
+  animation-name: snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+@keyframes snow-fall {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(55vh) translateX(30px) rotate(180deg);
+  }
+  100% {
+    transform: translateY(110vh) translateX(-20px) rotate(360deg);
+  }
+}
+
+/* Reduzierte Bewegung respektieren */
+@media (prefers-reduced-motion: reduce) {
+  .weather-scene * {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   NEUE FUNKTIONEN – Wetter-Icons, Detailwerte, Warnungen,
+   dynamischer Hero, Skeleton, Temperaturkurve, Einheiten
+   ============================================================ */
+

@@ -1,4 +1,39 @@
-document.addEventListener("DOMContentLoaded", () => {
+// ============================================================================
+// main.js – interaktiver Kern der App.
+//
+// Enthält DOM-Referenzen, Zustand (aktive Stadt, Caches, Radar), alle
+// Render-/Detail-/Filter-Funktionen und die Event-Verdrahtung.
+// Daten & reine Helfer liegen in den importierten Modulen.
+//
+// Als <script type="module"> geladen: läuft automatisch NACH dem Parsen des
+// DOM (deferred). Deshalb ist KEIN DOMContentLoaded-Wrapper mehr nötig – die
+// getElementById-Aufrufe unten finden ihre Elemente bereits vor.
+// ============================================================================
+import { state } from "./state.js";
+import { LANG_KEY, UNIT_KEY, FAV_KEY, LAST_CITY_KEY } from "./config.js";
+import { cityDatabase } from "./data/cities.js";
+import { t, loc } from "./data/i18n.js";
+import { WMO_CODES, POLLEN_TYPES } from "./data/weather-codes.js";
+import { convTemp, fmtTemp } from "./units.js";
+import { syncTime, now } from "./time.js";
+import { svgWeatherIcon } from "./weather-icons.js";
+import {
+  isNightTime,
+  isNightTimeForHour,
+  minutesUntil,
+  getWeatherAlert,
+  getWeatherAnimType,
+  getAqiInfo,
+  getPollenLevel,
+  getUvColor,
+  getMoonPhase,
+  haversine,
+  getFlagEmoji,
+  degToCompass,
+  buildDetailSkeleton,
+  setText,
+} from "./helpers.js";
+
   const container = document.getElementById("clocks-container");
   const favContainer = document.getElementById("favorites-container");
   const favSection = document.getElementById("favorites-section");
@@ -27,244 +62,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const hourlyTitle = document.getElementById("hourly-title");
 
   const searchCache = new Set();
-  let timeOffset = 0;
   let searchTimeout = null;
   let filterTimeout = null;
 
-  // ===== SPRACHE (DE / EN) =====
-  const LANG_KEY = "weltinfos_lang";
-  let lang = localStorage.getItem(LANG_KEY) === "en" ? "en" : "de";
 
-  const I18N = {
-    de: {
-      subtitle: "Aktuelle Vorhersagen & 7-Tage-Trends",
-      searchPlaceholder: "Stadt suchen...",
-      quickTitle: "⚡ Schnellzugriff",
-      hint: "💡 Tipp: Klicke auf eine Stadt für Details & 7-Tage-Vorhersage!",
-      favTitle: "⭐ Deine Favoriten",
-      allCities: "Alle Städte",
-      back: "← Zurück",
-      weatherLoading: "⌛️ Wetter wird geladen...",
-      weatherError: "❌ Wetter nicht verfügbar",
-      tempChartTitle: "📈 Temperaturverlauf der Woche",
-      legMax: "● Höchst",
-      legMin: "● Tiefst",
-      forecastTitle: "7-Tage-Vorschau",
-      hourlyTitle: "⏱️ Stündlicher Verlauf",
-      radarTitle: "🛰️ Live Wetter-Karte",
-      tabRain: "🌧️ Regen",
-      tabClouds: "☁️ Wolken",
-      tabWind: "💨 Wind",
-      tabNearby: "📍 Umgebung",
-      airTitle: "🌬️ Luftqualität & Pollen",
-      aqiLabel: "Luftqualität (AQI)",
-      pollenLabel: "Pollenflug",
-      moonLabel: "Mondphase",
-      pollenEmpty: "Aktuell keine relevanten Pollen.",
-      tileApparent: "Gefühlt",
-      tileUv: "UV-Index",
-      tileHumidity: "Luftfeuchte",
-      tileWind: "Wind",
-      illumLabel: "beleuchtet",
-      geoLoading: "📍 Standort wird ermittelt...",
-      geoDenied: "⚠️ Standortzugriff verweigert.",
-      geoUnavailable: "⚠️ Standort nicht verfügbar.",
-      geoUnsupported: "⚠️ Geolocation wird nicht unterstützt.",
-      geoFound: "✅ Nächste Stadt gefunden:",
-      rainStopIn: (m) => `Regen endet in ca. ${m} Min.`,
-      rainStartIn: (m) => `Regen beginnt in ca. ${m} Min.`,
-      rainNow: "Es regnet gerade.",
-      rainNone: "Kein Regen in der nächsten Stunde.",
-      locale: "de-DE",
-    },
-    en: {
-      subtitle: "Current forecasts & 7-day trends",
-      searchPlaceholder: "Search city...",
-      quickTitle: "⚡ Quick access",
-      hint: "💡 Tip: Tap a city for details & 7-day forecast!",
-      favTitle: "⭐ Your favourites",
-      allCities: "All cities",
-      back: "← Back",
-      weatherLoading: "⌛️ Loading weather...",
-      weatherError: "❌ Weather unavailable",
-      tempChartTitle: "📈 Weekly temperature trend",
-      legMax: "● High",
-      legMin: "● Low",
-      forecastTitle: "7-day forecast",
-      hourlyTitle: "⏱️ Hourly trend",
-      radarTitle: "🛰️ Live weather map",
-      tabRain: "🌧️ Rain",
-      tabClouds: "☁️ Clouds",
-      tabWind: "💨 Wind",
-      tabNearby: "📍 Nearby",
-      airTitle: "🌬️ Air quality & pollen",
-      aqiLabel: "Air quality (AQI)",
-      pollenLabel: "Pollen",
-      moonLabel: "Moon phase",
-      pollenEmpty: "No relevant pollen right now.",
-      tileApparent: "Feels like",
-      tileUv: "UV index",
-      tileHumidity: "Humidity",
-      tileWind: "Wind",
-      illumLabel: "illuminated",
-      geoLoading: "📍 Locating you...",
-      geoDenied: "⚠️ Location access denied.",
-      geoUnavailable: "⚠️ Location unavailable.",
-      geoUnsupported: "⚠️ Geolocation not supported.",
-      geoFound: "✅ Nearest city found:",
-      rainStopIn: (m) => `Rain ends in ~${m} min.`,
-      rainStartIn: (m) => `Rain starts in ~${m} min.`,
-      rainNow: "It's raining now.",
-      rainNone: "No rain in the next hour.",
-      locale: "en-GB",
-    },
-  };
 
-  function t(key) {
-    return (I18N[lang] && I18N[lang][key]) || I18N.de[key] || key;
-  }
-  // Aktuelle Locale für Datums-/Zeitformatierung.
-  function loc() {
-    return I18N[lang].locale;
-  }
 
-  // ===== EINHEITEN (°C / °F) =====
-  const UNIT_KEY = "weltinfos_unit";
-  let tempUnit = localStorage.getItem(UNIT_KEY) === "F" ? "F" : "C";
-
-  // Wandelt einen in °C gelieferten Wert in die aktuell gewählte Einheit um.
-  function convTemp(celsius) {
-    if (celsius == null || isNaN(celsius)) return celsius;
-    return tempUnit === "F"
-      ? Math.round((celsius * 9) / 5 + 32)
-      : Math.round(celsius);
-  }
-  // Formatiert einen °C-Wert komplett (z. B. "21°C").
-  function fmtTemp(celsius, withUnit = true) {
-    if (celsius == null || isNaN(celsius))
-      return "--°" + (withUnit ? tempUnit : "");
-    return convTemp(celsius) + "°" + (withUnit ? tempUnit : "");
-  }
-
-  // ===== ANIMIERTE SVG-WETTER-ICONS =====
-  // Alle Icons nutzen currentColor + die Akzentfarbe und animieren per CSS.
-  function svgWeatherIcon(code, isNight, size) {
-    const cls = "wx-svg";
-    const s = size || 1;
-    const wrap = (inner, extra) =>
-      `<span class="wx-icon ${extra || ""}" style="--wx-size:${s}em">` +
-      `<svg viewBox="0 0 64 64" class="${cls}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg></span>`;
-
-    const sun = (cx = 32, cy = 30, r = 12) => `
-      <g class="wx-sun">
-        <circle cx="${cx}" cy="${cy}" r="${r}" class="wx-sun-core"/>
-        <g class="wx-rays" stroke-linecap="round">
-          ${Array.from({ length: 8 })
-            .map((_, i) => {
-              const a = (i * Math.PI) / 4;
-              const x1 = cx + Math.cos(a) * (r + 4);
-              const y1 = cy + Math.sin(a) * (r + 4);
-              const x2 = cx + Math.cos(a) * (r + 10);
-              const y2 = cy + Math.sin(a) * (r + 10);
-              return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
-            })
-            .join("")}
-        </g>
-      </g>`;
-
-    const moon = `
-      <g class="wx-moon">
-        <path d="M40 16a16 16 0 1 0 8 30 20 20 0 0 1-8-30z"/>
-      </g>`;
-
-    const cloud = (extraCls = "", y = 0) => `
-      <g class="wx-cloud ${extraCls}" transform="translate(0 ${y})">
-        <path d="M22 44a10 10 0 0 1 .6-19.98A14 14 0 0 1 49 28a8 8 0 0 1-1 16z"/>
-      </g>`;
-
-    const stars = Array.from({ length: 5 })
-      .map((_, i) => {
-        const x = [10, 50, 18, 44, 32][i];
-        const y = [14, 18, 40, 38, 10][i];
-        return `<circle class="wx-star" cx="${x}" cy="${y}" r="1.4" style="animation-delay:${i * 0.4}s"/>`;
-      })
-      .join("");
-
-    const rain = (drops = 3) =>
-      `<g class="wx-rain" stroke-linecap="round">` +
-      Array.from({ length: drops })
-        .map(
-          (_, i) =>
-            `<line class="wx-drop" x1="${20 + i * 9}" y1="46" x2="${18 + i * 9}" y2="54" style="animation-delay:${i * 0.25}s"/>`,
-        )
-        .join("") +
-      `</g>`;
-
-    const snow = (flakes = 3) =>
-      `<g class="wx-snow">` +
-      Array.from({ length: flakes })
-        .map(
-          (_, i) =>
-            `<circle class="wx-flake" cx="${21 + i * 9}" cy="50" r="2" style="animation-delay:${i * 0.4}s"/>`,
-        )
-        .join("") +
-      `</g>`;
-
-    const bolt = `<polygon class="wx-bolt" points="32,44 27,54 33,54 29,62 40,50 34,50 38,44"/>`;
-    const fog = `<g class="wx-fog" stroke-linecap="round">
-        <line x1="14" y1="40" x2="50" y2="40"/>
-        <line x1="18" y1="46" x2="46" y2="46"/>
-        <line x1="16" y1="52" x2="48" y2="52"/>
-      </g>`;
-
-    // Code-Zuordnung
-    if ([0, 1].includes(code))
-      return isNight ? wrap(moon + stars, "wx-night") : wrap(sun());
-    if (code === 2)
-      return isNight
-        ? wrap(moon + cloud("wx-cloud-front", 4))
-        : wrap(sun(38, 24, 8) + cloud("wx-cloud-front", 6));
-    if (code === 3) return wrap(cloud("wx-cloud-solo"));
-    if ([45, 48].includes(code)) return wrap(cloud("wx-cloud-solo", -4) + fog);
-    if ([51, 53, 55, 61, 63, 80, 81].includes(code))
-      return wrap(cloud("wx-cloud-solo", -6) + rain(3));
-    if ([65, 82].includes(code))
-      return wrap(cloud("wx-cloud-solo", -6) + rain(4));
-    if ([71, 73, 75].includes(code))
-      return wrap(cloud("wx-cloud-solo", -6) + snow(3));
-    if ([95, 96, 99].includes(code))
-      return wrap(cloud("wx-cloud-solo wx-cloud-dark", -6) + bolt + rain(2));
-    return isNight ? wrap(moon + stars, "wx-night") : wrap(sun());
-  }
-
-  // ===== UNWETTERWARNUNGEN =====
-  // Bestimmt anhand von Code, Temperatur, UV und Wind eine Warnstufe.
-  function getWeatherAlert(code, tempC, uv, windKmh) {
-    // Gewitter / schwere Schauer
-    if ([95, 96, 99].includes(code))
-      return { level: "severe", icon: "⛈️", label: "Gewitterwarnung" };
-    if ([82].includes(code))
-      return { level: "severe", icon: "🌧️", label: "Starkregen" };
-    if ([75].includes(code))
-      return { level: "warn", icon: "❄️", label: "Starker Schneefall" };
-    // Hitze
-    if (tempC != null && tempC >= 35)
-      return { level: "severe", icon: "🥵", label: "Extreme Hitze" };
-    if (tempC != null && tempC >= 30)
-      return { level: "warn", icon: "🌡️", label: "Hitzewarnung" };
-    // Strenger Frost
-    if (tempC != null && tempC <= -10)
-      return { level: "warn", icon: "🥶", label: "Strenger Frost" };
-    // Sturm
-    if (windKmh != null && windKmh >= 75)
-      return { level: "severe", icon: "🌬️", label: "Sturm" };
-    if (windKmh != null && windKmh >= 50)
-      return { level: "warn", icon: "💨", label: "Windig" };
-    // Sehr hohe UV-Belastung
-    if (uv != null && uv >= 8)
-      return { level: "warn", icon: "☀️", label: "Sehr hohe UV-Strahlung" };
-    return null;
-  }
 
   // Holt die Wetterdaten einer Stadt von der API und baut das Cache-Objekt.
   // Wird sowohl von der Detailansicht als auch von den Karten genutzt.
@@ -377,15 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===== LUFTQUALITÄT & POLLEN (Open-Meteo Air Quality API) =====
   const airCache = {};
 
-  // Reihenfolge & Metadaten der Pollen-Arten (DE-relevant zuerst).
-  const POLLEN_TYPES = [
-    { key: "grass_pollen", icon: "🌾", de: "Gräser", en: "Grass" },
-    { key: "birch_pollen", icon: "🌳", de: "Birke", en: "Birch" },
-    { key: "alder_pollen", icon: "🌲", de: "Erle", en: "Alder" },
-    { key: "mugwort_pollen", icon: "🌿", de: "Beifuß", en: "Mugwort" },
-    { key: "ragweed_pollen", icon: "🍂", de: "Ambrosia", en: "Ragweed" },
-    { key: "olive_pollen", icon: "🫒", de: "Olive", en: "Olive" },
-  ];
 
   async function fetchAirQuality(city) {
     if (airCache[city.id]) return airCache[city.id];
@@ -410,102 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return air;
   }
 
-  // Europäischer AQI: Kategorien nach offiziellen Schwellen (0–20 gut … 100+ extrem).
-  function getAqiInfo(aqi) {
-    if (aqi == null)
-      return { cat: "–", catEn: "–", color: "var(--text-secondary)", pct: 0 };
-    if (aqi <= 20)
-      return { cat: "Gut", catEn: "Good", color: "#4caf50", pct: 12 };
-    if (aqi <= 40)
-      return { cat: "Ordentlich", catEn: "Fair", color: "#a3d900", pct: 30 };
-    if (aqi <= 60)
-      return { cat: "Mäßig", catEn: "Moderate", color: "#ffcf00", pct: 50 };
-    if (aqi <= 80)
-      return { cat: "Schlecht", catEn: "Poor", color: "#ff9800", pct: 70 };
-    if (aqi <= 100)
-      return {
-        cat: "Sehr schlecht",
-        catEn: "Very Poor",
-        color: "#f44336",
-        pct: 88,
-      };
-    return {
-      cat: "Extrem schlecht",
-      catEn: "Extremely Poor",
-      color: "#9c27b0",
-      pct: 100,
-    };
-  }
 
-  // Pollen-Belastung (Körner/m³) grob in Stufen – CAMS-übliche Schwellen.
-  function getPollenLevel(type, value) {
-    if (value == null || value < 1)
-      return { level: 0, de: "Keine", en: "None", color: "#4caf50" };
-    // Gräser/Ambrosia sind reizstärker → niedrigere Schwellen
-    const strong = ["grass_pollen", "ragweed_pollen"].includes(type);
-    const t = strong ? [10, 30, 60] : [15, 50, 90];
-    if (value < t[0])
-      return { level: 1, de: "Gering", en: "Low", color: "#a3d900" };
-    if (value < t[1])
-      return { level: 2, de: "Mäßig", en: "Moderate", color: "#ffcf00" };
-    if (value < t[2])
-      return { level: 3, de: "Hoch", en: "High", color: "#ff9800" };
-    return { level: 4, de: "Sehr hoch", en: "Very High", color: "#f44336" };
-  }
-
-  // ===== MONDPHASEN =====
-  // Berechnet Phase (0..1), Beleuchtung (%) und Namen aus dem Datum.
-  // Referenz: bekannter Neumond 2000-01-06 18:14 UTC, synodischer Monat 29.53059 Tage.
-  function getMoonPhase(date) {
-    const synodic = 29.53058867;
-    const refNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
-    const days = (date.getTime() - refNewMoon) / 86400000;
-    let phase = (days % synodic) / synodic;
-    if (phase < 0) phase += 1;
-    // Beleuchtungsgrad (0 bei Neumond, 1 bei Vollmond)
-    const illum = (1 - Math.cos(2 * Math.PI * phase)) / 2;
-
-    const phases = [
-      { max: 0.0333, icon: "🌑", de: "Neumond", en: "New Moon" },
-      {
-        max: 0.2166,
-        icon: "🌒",
-        de: "Zunehmende Sichel",
-        en: "Waxing Crescent",
-      },
-      {
-        max: 0.2833,
-        icon: "🌓",
-        de: "Zunehmender Halbmond",
-        en: "First Quarter",
-      },
-      { max: 0.4666, icon: "🌔", de: "Zunehmender Mond", en: "Waxing Gibbous" },
-      { max: 0.5333, icon: "🌕", de: "Vollmond", en: "Full Moon" },
-      { max: 0.7166, icon: "🌖", de: "Abnehmender Mond", en: "Waning Gibbous" },
-      {
-        max: 0.7833,
-        icon: "🌗",
-        de: "Abnehmender Halbmond",
-        en: "Last Quarter",
-      },
-      {
-        max: 0.9666,
-        icon: "🌘",
-        de: "Abnehmende Sichel",
-        en: "Waning Crescent",
-      },
-      { max: 1.0001, icon: "🌑", de: "Neumond", en: "New Moon" },
-    ];
-    const info = phases.find((p) => phase < p.max) || phases[phases.length - 1];
-    return {
-      phase: phase,
-      illum: Math.round(illum * 100),
-      waxing: phase < 0.5,
-      icon: info.icon,
-      de: info.de,
-      en: info.en,
-    };
-  }
 
   async function getWeatherForCity(city) {
     weatherLoading.style.display = "block";
@@ -538,89 +237,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Baut das Skeleton-Markup für die Detail-Wetteransicht.
-  function buildDetailSkeleton() {
-    return `
-      <div class="wx-skeleton">
-        <div class="sk-row sk-main">
-          <div class="sk-circle"></div>
-          <div class="sk-temp"></div>
-        </div>
-        <div class="sk-grid">
-          <div class="sk-tile"></div><div class="sk-tile"></div>
-          <div class="sk-tile"></div><div class="sk-tile"></div>
-        </div>
-      </div>`;
-  }
 
-  function isNightTime(sunrise, sunset, timezone) {
-    if (!sunrise || !sunset || !timezone) return false;
-    try {
-      const nowInCity = new Date().toLocaleTimeString("de-DE", {
-        timeZone: timezone,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
-      const sunriseTime = sunrise.includes("T")
-        ? sunrise.split("T")[1]
-        : sunrise;
-      const sunsetTime = sunset.includes("T") ? sunset.split("T")[1] : sunset;
-      return nowInCity < sunriseTime || nowInCity > sunsetTime;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  function isNightTimeForHour(timeStr, sunrise, sunset) {
-    if (!sunrise || !sunset || !timeStr) return false;
-    try {
-      const hourTime = timeStr.includes("T") ? timeStr.split("T")[1] : timeStr;
-      const sunriseTime = sunrise.includes("T")
-        ? sunrise.split("T")[1]
-        : sunrise;
-      const sunsetTime = sunset.includes("T") ? sunset.split("T")[1] : sunset;
-      return hourTime < sunriseTime || hourTime > sunsetTime;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  const WMO_CODES = {
-    0: "Klar",
-    1: "Überwiegend klar",
-    2: "Teilweise bewölkt",
-    3: "Bewölkt",
-    45: "Nebel",
-    48: "Rauchnebel",
-    51: "Leichter Nieselregen",
-    53: "Mäßiger Nieselregen",
-    55: "Starker Nieselregen",
-    61: "Leichter Regen",
-    63: "Mäßiger Regen",
-    65: "Starker Regen",
-    71: "Leichter Schneefall",
-    73: "Mäßiger Schneefall",
-    75: "Starker Schneefall",
-    80: "Leichte Schauer",
-    81: "Mäßige Schauer",
-    82: "Starke Schauer",
-    95: "Gewitter",
-    96: "Gewitter mit Hagel",
-    99: "Schweres Gewitter",
-  };
-
-  // Ordnet WMO-Codes einem animierten Hintergrund-Typ zu.
-  function getWeatherAnimType(code) {
-    if ([0, 1].includes(code)) return "clear";
-    if ([2].includes(code)) return "partly";
-    if ([3].includes(code)) return "cloudy";
-    if ([45, 48].includes(code)) return "fog";
-    if ([51, 53, 55, 61, 63, 65, 80, 81].includes(code)) return "rain";
-    if ([71, 73, 75].includes(code)) return "snow";
-    if ([82, 95, 96, 99].includes(code)) return "thunder";
-    return "clear";
-  }
 
   // Baut die animierte Wetter-Szene als DOM-Schicht hinter dem Inhalt auf.
   function applyDetailBackground(code) {
@@ -772,333 +391,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function syncTime() {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(
-        "https://timeapi.io/api/time/current/zone?timeZone=UTC",
-        {
-          cache: "no-store",
-          signal: controller.signal,
-        },
-      );
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error("API antwortet nicht");
-      const data = await res.json();
-      timeOffset = new Date(data.dateTime + "Z").getTime() - Date.now();
-    } catch (err) {
-      timeOffset = 0;
-    }
-  }
-
-  function now() {
-    return new Date(Date.now() + timeOffset);
-  }
 
   syncTime();
   setInterval(syncTime, 60 * 60 * 1000);
 
-  const cityDatabase = [
-    {
-      id: "aachen",
-      name: "Aachen",
-      country: "🇩🇪",
-      timezone: "Europe/Berlin",
-      lat: 50.77,
-      lon: 6.08,
-    },
-    {
-      id: "berlin",
-      name: "Berlin",
-      country: "🇩🇪",
-      timezone: "Europe/Berlin",
-      lat: 52.52,
-      lon: 13.4,
-    },
-    {
-      id: "munich",
-      name: "München",
-      country: "🇩🇪",
-      timezone: "Europe/Berlin",
-      lat: 48.13,
-      lon: 11.58,
-    },
-    {
-      id: "hamburg",
-      name: "Hamburg",
-      country: "🇩🇪",
-      timezone: "Europe/Berlin",
-      lat: 53.55,
-      lon: 9.99,
-    },
-    {
-      id: "frankfurt",
-      name: "Frankfurt",
-      country: "🇩🇪",
-      timezone: "Europe/Berlin",
-      lat: 50.11,
-      lon: 8.68,
-    },
-    {
-      id: "london",
-      name: "London",
-      country: "🇬🇧",
-      timezone: "Europe/London",
-      lat: 51.51,
-      lon: -0.13,
-    },
-    {
-      id: "paris",
-      name: "Paris",
-      country: "🇫🇷",
-      timezone: "Europe/Paris",
-      lat: 48.86,
-      lon: 2.35,
-    },
-    {
-      id: "rome",
-      name: "Rom",
-      country: "🇮🇹",
-      timezone: "Europe/Rome",
-      lat: 41.9,
-      lon: 12.5,
-    },
-    {
-      id: "madrid",
-      name: "Madrid",
-      country: "🇪🇸",
-      timezone: "Europe/Madrid",
-      lat: 40.42,
-      lon: -3.7,
-    },
-    {
-      id: "amsterdam",
-      name: "Amsterdam",
-      country: "🇳🇱",
-      timezone: "Europe/Amsterdam",
-      lat: 52.37,
-      lon: 4.9,
-    },
-    {
-      id: "vienna",
-      name: "Wien",
-      country: "🇦🇹",
-      timezone: "Europe/Vienna",
-      lat: 48.21,
-      lon: 16.37,
-    },
-    {
-      id: "zurich",
-      name: "Zürich",
-      country: "🇨🇭",
-      timezone: "Europe/Zurich",
-      lat: 47.37,
-      lon: 8.54,
-    },
-    {
-      id: "moscow",
-      name: "Moskau",
-      country: "🇷🇺",
-      timezone: "Europe/Moscow",
-      lat: 55.75,
-      lon: 37.62,
-    },
-    {
-      id: "istanbul",
-      name: "Istanbul",
-      country: "🇹🇷",
-      timezone: "Europe/Istanbul",
-      lat: 41.01,
-      lon: 28.98,
-    },
-    {
-      id: "newyork",
-      name: "New York",
-      country: "🇺🇸",
-      timezone: "America/New_York",
-      lat: 40.71,
-      lon: -74.01,
-    },
-    {
-      id: "losangeles",
-      name: "Los Angeles",
-      country: "🇺🇸",
-      timezone: "America/Los_Angeles",
-      lat: 34.05,
-      lon: -118.24,
-    },
-    {
-      id: "chicago",
-      name: "Chicago",
-      country: "🇺🇸",
-      timezone: "America/Chicago",
-      lat: 41.88,
-      lon: -87.63,
-    },
-    {
-      id: "toronto",
-      name: "Toronto",
-      country: "🇨🇦",
-      timezone: "America/Toronto",
-      lat: 43.65,
-      lon: -79.38,
-    },
-    {
-      id: "mexicocity",
-      name: "Mexiko-Stadt",
-      country: "🇲🇽",
-      timezone: "America/Mexico_City",
-      lat: 19.43,
-      lon: -99.13,
-    },
-    {
-      id: "saopaulo",
-      name: "São Paulo",
-      country: "🇧🇷",
-      timezone: "America/Sao_Paulo",
-      lat: -23.55,
-      lon: -46.63,
-    },
-    {
-      id: "buenosaires",
-      name: "Buenos Aires",
-      country: "🇦🇷",
-      timezone: "America/Argentina/Buenos_Aires",
-      lat: -34.6,
-      lon: -58.38,
-    },
-    {
-      id: "tokyo",
-      name: "Tokio",
-      country: "🇯🇵",
-      timezone: "Asia/Tokyo",
-      lat: 35.68,
-      lon: 139.69,
-    },
-    {
-      id: "beijing",
-      name: "Peking",
-      country: "🇨🇳",
-      timezone: "Asia/Shanghai",
-      lat: 39.9,
-      lon: 116.4,
-    },
-    {
-      id: "shanghai",
-      name: "Shanghai",
-      country: "🇨🇳",
-      timezone: "Asia/Shanghai",
-      lat: 31.23,
-      lon: 121.47,
-    },
-    {
-      id: "hongkong",
-      name: "Hong Kong",
-      country: "🇭🇰",
-      timezone: "Asia/Hong_Kong",
-      lat: 22.32,
-      lon: 114.17,
-    },
-    {
-      id: "singapore",
-      name: "Singapur",
-      country: "🇸🇬",
-      timezone: "Asia/Singapore",
-      lat: 1.35,
-      lon: 103.82,
-    },
-    {
-      id: "seoul",
-      name: "Seoul",
-      country: "🇰🇷",
-      timezone: "Asia/Seoul",
-      lat: 37.57,
-      lon: 126.98,
-    },
-    {
-      id: "mumbai",
-      name: "Mumbai",
-      country: "🇮🇳",
-      timezone: "Asia/Kolkata",
-      lat: 19.08,
-      lon: 72.88,
-    },
-    {
-      id: "delhi",
-      name: "Neu-Delhi",
-      country: "🇮🇳",
-      timezone: "Asia/Kolkata",
-      lat: 28.61,
-      lon: 77.21,
-    },
-    {
-      id: "bangkok",
-      name: "Bangkok",
-      country: "🇹🇭",
-      timezone: "Asia/Bangkok",
-      lat: 13.75,
-      lon: 100.5,
-    },
-    {
-      id: "dubai",
-      name: "Dubai",
-      country: "🇦🇪",
-      timezone: "Asia/Dubai",
-      lat: 25.2,
-      lon: 55.27,
-    },
-    {
-      id: "sydney",
-      name: "Sydney",
-      country: "🇦🇺",
-      timezone: "Australia/Sydney",
-      lat: -33.87,
-      lon: 151.21,
-    },
-    {
-      id: "melbourne",
-      name: "Melbourne",
-      country: "🇦🇺",
-      timezone: "Australia/Melbourne",
-      lat: -37.81,
-      lon: 144.96,
-    },
-    {
-      id: "auckland",
-      name: "Auckland",
-      country: "🇳🇿",
-      timezone: "Pacific/Auckland",
-      lat: -36.85,
-      lon: 174.76,
-    },
-    {
-      id: "cairo",
-      name: "Kairo",
-      country: "🇪🇬",
-      timezone: "Africa/Cairo",
-      lat: 30.04,
-      lon: 31.24,
-    },
-    {
-      id: "capetown",
-      name: "Kapstadt",
-      country: "🇿🇦",
-      timezone: "Africa/Johannesburg",
-      lat: -33.93,
-      lon: 18.42,
-    },
-    {
-      id: "lagos",
-      name: "Lagos",
-      country: "🇳🇬",
-      timezone: "Africa/Lagos",
-      lat: 6.52,
-      lon: 3.38,
-    },
-  ];
 
-  const FAV_KEY = "weltinfos_favorites_v2";
   const favorites = new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]"));
 
   function saveFavorites() {
@@ -1131,14 +428,6 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       : "--:--";
 
-  function getUvColor(uv) {
-    if (uv === null || uv === undefined) return "var(--text-secondary)";
-    if (uv <= 2) return "#4caf50";
-    if (uv <= 5) return "#ffeb3b";
-    if (uv <= 7) return "#ff9800";
-    if (uv <= 10) return "#f44336";
-    return "#9c27b0";
-  }
 
   function buildCard(city) {
     const card = document.createElement("div");
@@ -1239,7 +528,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===== DYNAMISCHER HERO-HINTERGRUND =====
-  const LAST_CITY_KEY = "weltinfos_last_city";
   let heroMoodApplied = false;
 
   // Wählt die "Leitstadt" für die Hero-Stimmung: erst zuletzt besuchte,
@@ -1548,24 +836,12 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  // Entfernung zweier Koordinaten in km (Haversine).
-  function haversine(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
 
   // Wandelt Koordinaten in eine Stadt um (Open-Meteo Reverse-Geocoding).
   async function reverseGeocode(lat, lon) {
     try {
       const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?latitude=${lat}&longitude=${lon}&count=1&language=${lang}&format=json`,
+        `https://geocoding-api.open-meteo.com/v1/search?latitude=${lat}&longitude=${lon}&count=1&language=${state.lang}&format=json`,
       );
       const data = await res.json();
       if (data.results && data.results.length) {
@@ -1590,7 +866,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Fallback: generische Standort-Stadt anlegen
     return {
       id: "loc" + lat.toFixed(2) + lon.toFixed(2),
-      name: lang === "en" ? "My location" : "Mein Standort",
+      name: state.lang === "en" ? "My location" : "Mein Standort",
       country: "📍",
       timezone:
         Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin",
@@ -1599,14 +875,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function getFlagEmoji(countryCode) {
-    if (!countryCode || countryCode.length !== 2) return "🌍";
-    const codePoints = countryCode
-      .toUpperCase()
-      .split("")
-      .map((char) => 127397 + char.charCodeAt());
-    return String.fromCodePoint(...codePoints);
-  }
 
   function updateClocks() {
     const t = now();
@@ -2026,10 +1294,10 @@ document.addEventListener("DOMContentLoaded", () => {
     detailStarBtn.setAttribute(
       "aria-label",
       isFav
-        ? lang === "en"
+        ? state.lang === "en"
           ? "Remove from favourites"
           : "Aus Favoriten entfernen"
-        : lang === "en"
+        : state.lang === "en"
           ? "Add to favourites"
           : "Als Favorit speichern",
     );
@@ -2181,10 +1449,6 @@ document.addEventListener("DOMContentLoaded", () => {
     banner.style.display = "flex";
   }
 
-  function minutesUntil(iso) {
-    const diff = new Date(iso).getTime() - Date.now();
-    return Math.max(0, Math.round(diff / 60000));
-  }
 
   // ===== MONDPHASE RENDERN =====
   function renderMoonPhase() {
@@ -2196,7 +1460,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!card || !nameEl || !illumEl || !disc || !shadow) return;
 
     const m = getMoonPhase(now());
-    nameEl.textContent = m.icon + " " + (lang === "en" ? m.en : m.de);
+    nameEl.textContent = m.icon + " " + (state.lang === "en" ? m.en : m.de);
     illumEl.textContent = m.illum + "% " + t("illumLabel");
 
     // Schatten-Position simuliert die Phase auf der Scheibe
@@ -2246,7 +1510,7 @@ document.addEventListener("DOMContentLoaded", () => {
       val.style.color = info.color;
     }
     if (cat) {
-      cat.textContent = lang === "en" ? info.catEn : info.cat;
+      cat.textContent = state.lang === "en" ? info.catEn : info.cat;
       cat.style.color = info.color;
     }
     setText("air-pm25", "PM2.5 " + (air.pm25 != null ? air.pm25 : "–"));
@@ -2282,8 +1546,8 @@ document.addEventListener("DOMContentLoaded", () => {
     active.slice(0, 5).forEach((p) => {
       const row = document.createElement("div");
       row.className = "pollen-item";
-      const name = lang === "en" ? p.en : p.de;
-      const lvlName = lang === "en" ? p.lvl.en : p.lvl.de;
+      const name = state.lang === "en" ? p.en : p.de;
+      const lvlName = state.lang === "en" ? p.lvl.en : p.lvl.de;
       row.innerHTML = `
         <span class="pollen-icon">${p.icon}</span>
         <span class="pollen-name">${name}</span>
@@ -2293,15 +1557,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function setText(id, txt) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = txt;
-  }
-
-  function degToCompass(deg) {
-    const dirs = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
-    return dirs[Math.round(deg / 45) % 8];
-  }
 
   // ===== WOCHEN-TEMPERATURKURVE (SVG-Liniendiagramm) =====
   function renderTempChart(fc) {
@@ -2560,7 +1815,7 @@ document.addEventListener("DOMContentLoaded", () => {
   buildQuickAccess();
 
   // Gespeicherte Sprache sofort anwenden (falls EN gewählt wurde)
-  if (lang === "en") applyLanguage();
+  if (state.lang === "en") applyLanguage();
 
   const params = new URLSearchParams(window.location.search);
   const urlCityId = params.get("city");
@@ -2594,12 +1849,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const unitBtn = document.getElementById("unit-toggle");
   if (unitBtn) {
     const renderUnitBtn = () => {
-      unitBtn.innerHTML = `<span class="${tempUnit === "C" ? "active" : ""}">°C</span><span class="${tempUnit === "F" ? "active" : ""}">°F</span>`;
+      unitBtn.innerHTML = `<span class="${state.tempUnit === "C" ? "active" : ""}">°C</span><span class="${state.tempUnit === "F" ? "active" : ""}">°F</span>`;
     };
     renderUnitBtn();
     unitBtn.addEventListener("click", () => {
-      tempUnit = tempUnit === "C" ? "F" : "C";
-      localStorage.setItem(UNIT_KEY, tempUnit);
+      state.tempUnit = state.tempUnit === "C" ? "F" : "C";
+      localStorage.setItem(UNIT_KEY, state.tempUnit);
       renderUnitBtn();
       // Alle bereits geladenen Karten neu zeichnen
       Object.keys(weatherCache).forEach((id) => {
@@ -2620,7 +1875,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ===== SPRACHUMSCHALTUNG (DE / EN) =====
   // Aktualisiert alle statischen UI-Texte gemäß aktueller Sprache.
   function applyLanguage() {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = state.lang;
 
     // Hero
     const subtitle = document.querySelector("header p");
@@ -2692,12 +1947,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const langBtn = document.getElementById("lang-toggle");
   if (langBtn) {
     const renderLangBtn = () => {
-      langBtn.innerHTML = `<span class="${lang === "de" ? "active" : ""}">DE</span><span class="${lang === "en" ? "active" : ""}">EN</span>`;
+      langBtn.innerHTML = `<span class="${state.lang === "de" ? "active" : ""}">DE</span><span class="${state.lang === "en" ? "active" : ""}">EN</span>`;
     };
     renderLangBtn();
     langBtn.addEventListener("click", () => {
-      lang = lang === "de" ? "en" : "de";
-      localStorage.setItem(LANG_KEY, lang);
+      state.lang = state.lang === "de" ? "en" : "de";
+      localStorage.setItem(LANG_KEY, state.lang);
       renderLangBtn();
       applyLanguage();
     });
@@ -2861,4 +2116,3 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     });
   }
-});

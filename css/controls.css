@@ -1,0 +1,92 @@
+/* ===== EINHEITEN-TOGGLE & FLOATING CONTROLS ===== */
+.floating-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9999;
+}
+.floating-controls .theme-toggle-btn {
+  position: static;
+  bottom: auto;
+  right: auto;
+}
+.unit-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  height: 50px;
+  transition:
+    border-color 0.3s ease,
+    transform 0.2s ease;
+}
+.unit-toggle-btn:hover {
+  border-color: var(--accent);
+  transform: scale(1.04);
+}
+.unit-toggle-btn span {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-radius: 50px;
+  transition: all 0.25s ease;
+  line-height: 1;
+}
+.unit-toggle-btn span.active {
+  background: var(--accent);
+  color: var(--bg-color);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* =====================================================================
+   READABILITY LAYER (v2)
+   Die Detailansicht liegt über einer farbigen, teils sehr hellen
+   Wetter-Szene (blauer Himmel etc.). Damit Beschriftungen, Datum und
+   Kacheln immer lesbar bleiben, bekommen sie hier eine kräftigere,
+   kontrastreiche Behandlung – der futuristische Neon-Look
+   (Uhrzeit / Temperatur) bleibt erhalten.
+   ===================================================================== */
+
+body.light-mode .detail-weather {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Text innerhalb der Detailansicht generell klar lesbar machen.
+   Ein dezenter Schatten trennt die Schrift von hellen Himmels-Szenen. */
+.detail-content .detail-zone,
+.detail-content .detail-date,
+.detail-content .wx-desc-text,
+.detail-content .wx-tile-label,
+.detail-content .tracker-times span {
+  color: #eef2f7 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.detail-content .wx-tile-value {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* In Light-Mode wieder dunkle, gut lesbare Schrift ohne dunklen Schatten. */
+body.light-mode .detail-content .detail-zone,
+body.light-mode .detail-content .detail-date,
+body.light-mode .detail-content .wx-desc-text,
+body.light-mode .detail-content .wx-tile-label,
+body.light-mode .detail-content .tracker-times span {
+  color: #1a2230 !important;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+body.light-mode .detail-content .wx-tile-value {
+  color: #0d1117 !important;
+  text-shadow: none;
+}
+
+/* ===================================================================== */

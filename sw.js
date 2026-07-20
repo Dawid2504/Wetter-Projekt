@@ -1,5 +1,5 @@
 /* Service Worker für "Wetter weltweit" */
-const CACHE_VERSION = "wetter-v3";
+const CACHE_VERSION = "wetter-v4";
 
 const APP_SHELL = [
   "/",
@@ -7,9 +7,9 @@ const APP_SHELL = [
   "/style.css",
   "/script.js",
   "/manifest.webmanifest",
-  "/icon-192.png",
-  "/icon-512.png",
-  "/icon-maskable-512.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-maskable-512.png",
 ];
 
 // Domains, die NIE gecacht werden (immer live) – Wetter-, Karten- und Bilddaten

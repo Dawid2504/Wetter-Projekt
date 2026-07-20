@@ -72,7 +72,7 @@ import {
   // Holt die Wetterdaten einer Stadt von der API und baut das Cache-Objekt.
   // Wird sowohl von der Detailansicht als auch von den Karten genutzt.
   async function fetchWeather(city) {
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m,pressure_msl,precipitation&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m,dew_point_2m,visibility,pressure_msl,precipitation&minutely_15=precipitation&timezone=auto`;
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation,cloud_cover,snowfall&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max&hourly=temperature_2m,weathercode,precipitation_probability,apparent_temperature,relative_humidity_2m,dew_point_2m,visibility,pressure_msl,precipitation,wind_gusts_10m,cloud_cover,snowfall&minutely_15=precipitation&timezone=auto`;
     const weatherRes = await fetch(weatherUrl);
     const weatherData = await weatherRes.json();
     const current = weatherData.current_weather;
@@ -152,6 +152,21 @@ import {
         ? cur.precipitation
         : hourlyVal(hourly && hourly.precipitation);
 
+    // Windböen (km/h), Bewölkungsgrad (%) & Schneefall (cm) – gleicher
+    // current→hourly-Fallback wie oben.
+    const gustsRaw =
+      cur.wind_gusts_10m != null
+        ? cur.wind_gusts_10m
+        : hourlyVal(hourly && hourly.wind_gusts_10m);
+    const cloudRaw =
+      cur.cloud_cover != null
+        ? cur.cloud_cover
+        : hourlyVal(hourly && hourly.cloud_cover);
+    const snowRaw =
+      cur.snowfall != null
+        ? cur.snowfall
+        : hourlyVal(hourly && hourly.snowfall);
+
     const weather = {
       code: current.weathercode,
       temp: Math.round(current.temperature),
@@ -165,6 +180,9 @@ import {
       dewPoint: dewPointRaw != null ? Math.round(dewPointRaw) : null,
       visibility: visibilityRaw != null ? visibilityRaw : null,
       precip: precipRaw != null ? precipRaw : null,
+      gusts: gustsRaw != null ? Math.round(gustsRaw) : null,
+      cloud: cloudRaw != null ? Math.round(cloudRaw) : null,
+      snow: snowRaw != null ? snowRaw : null,
       alert: getWeatherAlert(
         current.weathercode,
         Math.round(current.temperature),
@@ -1386,6 +1404,21 @@ import {
           <div class="wx-tile-icon">🌧️</div>
           <div class="wx-tile-label">${t("tilePrecip")}</div>
           <div class="wx-tile-value">${w.precip != null ? w.precip.toFixed(1) + " mm" : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">🌬️</div>
+          <div class="wx-tile-label">${t("tileGusts")}</div>
+          <div class="wx-tile-value">${w.gusts != null ? w.gusts + " km/h" : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">☁️</div>
+          <div class="wx-tile-label">${t("tileClouds")}</div>
+          <div class="wx-tile-value">${w.cloud != null ? w.cloud + "%" : "–"}</div>
+        </div>
+        <div class="wx-tile">
+          <div class="wx-tile-icon">❄️</div>
+          <div class="wx-tile-label">${t("tileSnow")}</div>
+          <div class="wx-tile-value">${w.snow != null ? w.snow.toFixed(1) + " cm" : "–"}</div>
         </div>
       </div>`;
 

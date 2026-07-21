@@ -18,6 +18,45 @@ body.light-mode .temp-chart-container {
   margin: 0 0 6px;
   text-align: center;
 }
+/* Umschalter Woche / Tag */
+.temp-chart-toggle {
+  display: inline-flex;
+  margin: 0 auto 10px;
+  padding: 3px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  gap: 2px;
+}
+.temp-chart-container {
+  text-align: center;
+}
+body.light-mode .temp-chart-toggle {
+  background: rgba(0, 0, 0, 0.05);
+}
+.tc-toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 18px;
+  border-radius: 50px;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+.tc-toggle-btn:hover {
+  color: var(--text-primary);
+}
+.tc-toggle-btn.active {
+  background: var(--accent);
+  color: var(--bg-color);
+}
+
 .temp-chart-legend {
   display: flex;
   justify-content: center;
@@ -67,6 +106,12 @@ body.light-mode .temp-chart-container {
 }
 .temp-chart-svg .tc-dot-min {
   fill: #4aa3ff;
+}
+.temp-chart-svg .tc-dot-now {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
 }
 .temp-chart-svg .tc-val {
   font-size: 9px;

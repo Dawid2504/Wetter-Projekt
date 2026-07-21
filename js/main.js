@@ -461,6 +461,10 @@ import {
   let activeCity = null;
   const weatherCache = {};
 
+  // Temperaturkurve: "week" (Höchst/Tiefst pro Tag) oder "day" (stündlich heute).
+  let tempChartMode = "week";
+  let tempChartWeather = null;
+
   const formatTime = (isoStr) =>
     isoStr
       ? new Date(isoStr).toLocaleTimeString(loc(), {
@@ -1362,65 +1366,115 @@ import {
           ? Math.round(w.visibility / 1000) + " km"
           : Math.round(w.visibility) + " m";
 
-    // Kachel-Raster mit den Detailwerten
-    const tiles = `
-      <div class="wx-detail-grid">
+    // Kachel-Definitionen. "primary" = immer sichtbar, sonst in der
+    // ausklappbaren Sektion. "show" blendet Kacheln (z.B. Niederschlag /
+    // Schneefall) aus, wenn es aktuell nichts zu melden gibt.
+    const tileDefs = [
+      {
+        icon: "🌡️",
+        label: t("tileApparent"),
+        value: w.apparent != null ? fmtTemp(w.apparent) : "–",
+        primary: true,
+        show: true,
+      },
+      {
+        icon: "💧",
+        label: t("tileHumidity"),
+        value: w.humidity != null ? w.humidity + "%" : "–",
+        primary: true,
+        show: true,
+      },
+      {
+        icon: "💨",
+        label: t("tileWind"),
+        value: w.wind != null ? w.wind + " km/h" + windDirTxt : "–",
+        primary: true,
+        show: true,
+      },
+      {
+        icon: "☀️",
+        iconColor: uvColor,
+        label: t("tileUv"),
+        value: w.uvIndex != null ? w.uvIndex : "–",
+        valueColor: uvColor,
+        primary: true,
+        show: true,
+      },
+      {
+        icon: "🌧️",
+        label: t("tilePrecip"),
+        value: w.precip != null ? w.precip.toFixed(1) + " mm" : "–",
+        primary: false,
+        show: w.precip != null && w.precip > 0,
+      },
+      {
+        icon: "❄️",
+        label: t("tileSnow"),
+        value: w.snow != null ? w.snow.toFixed(1) + " cm" : "–",
+        primary: false,
+        show: w.snow != null && w.snow > 0,
+      },
+      {
+        icon: "📊",
+        label: t("tilePressure"),
+        value: w.pressure != null ? w.pressure + " hPa" : "–",
+        primary: false,
+        show: true,
+      },
+      {
+        icon: "👁️",
+        label: t("tileVisibility"),
+        value: visTxt,
+        primary: false,
+        show: true,
+      },
+      {
+        icon: "🌫️",
+        label: t("tileDewpoint"),
+        value: w.dewPoint != null ? fmtTemp(w.dewPoint) : "–",
+        primary: false,
+        show: true,
+      },
+      {
+        icon: "🌬️",
+        label: t("tileGusts"),
+        value: w.gusts != null ? w.gusts + " km/h" : "–",
+        primary: false,
+        show: true,
+      },
+      {
+        icon: "☁️",
+        label: t("tileClouds"),
+        value: w.cloud != null ? w.cloud + "%" : "–",
+        primary: false,
+        show: true,
+      },
+    ];
+
+    const tileHtml = (d) => `
         <div class="wx-tile">
-          <div class="wx-tile-icon">🌡️</div>
-          <div class="wx-tile-label">${t("tileApparent")}</div>
-          <div class="wx-tile-value">${w.apparent != null ? fmtTemp(w.apparent) : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon" style="color:${uvColor}">☀️</div>
-          <div class="wx-tile-label">${t("tileUv")}</div>
-          <div class="wx-tile-value" style="color:${uvColor}">${w.uvIndex != null ? w.uvIndex : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">💧</div>
-          <div class="wx-tile-label">${t("tileHumidity")}</div>
-          <div class="wx-tile-value">${w.humidity != null ? w.humidity + "%" : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">💨</div>
-          <div class="wx-tile-label">${t("tileWind")}</div>
-          <div class="wx-tile-value">${w.wind != null ? w.wind + " km/h" + windDirTxt : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">📊</div>
-          <div class="wx-tile-label">${t("tilePressure")}</div>
-          <div class="wx-tile-value">${w.pressure != null ? w.pressure + " hPa" : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">👁️</div>
-          <div class="wx-tile-label">${t("tileVisibility")}</div>
-          <div class="wx-tile-value">${visTxt}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">🌫️</div>
-          <div class="wx-tile-label">${t("tileDewpoint")}</div>
-          <div class="wx-tile-value">${w.dewPoint != null ? fmtTemp(w.dewPoint) : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">🌧️</div>
-          <div class="wx-tile-label">${t("tilePrecip")}</div>
-          <div class="wx-tile-value">${w.precip != null ? w.precip.toFixed(1) + " mm" : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">🌬️</div>
-          <div class="wx-tile-label">${t("tileGusts")}</div>
-          <div class="wx-tile-value">${w.gusts != null ? w.gusts + " km/h" : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">☁️</div>
-          <div class="wx-tile-label">${t("tileClouds")}</div>
-          <div class="wx-tile-value">${w.cloud != null ? w.cloud + "%" : "–"}</div>
-        </div>
-        <div class="wx-tile">
-          <div class="wx-tile-icon">❄️</div>
-          <div class="wx-tile-label">${t("tileSnow")}</div>
-          <div class="wx-tile-value">${w.snow != null ? w.snow.toFixed(1) + " cm" : "–"}</div>
-        </div>
-      </div>`;
+          <div class="wx-tile-icon"${d.iconColor ? ` style="color:${d.iconColor}"` : ""}>${d.icon}</div>
+          <div class="wx-tile-label">${d.label}</div>
+          <div class="wx-tile-value"${d.valueColor ? ` style="color:${d.valueColor}"` : ""}>${d.value}</div>
+        </div>`;
+
+    const primaryTiles = tileDefs
+      .filter((d) => d.show && d.primary)
+      .map(tileHtml)
+      .join("");
+    const moreTiles = tileDefs
+      .filter((d) => d.show && !d.primary)
+      .map(tileHtml)
+      .join("");
+
+    const tiles =
+      `<div class="wx-detail-grid">${primaryTiles}</div>` +
+      (moreTiles
+        ? `<details class="wx-more">
+          <summary class="wx-more-summary">${t("moreDetails")}</summary>
+          <div class="wx-detail-grid wx-more-grid">${moreTiles}</div>
+        </details>`
+        : "");
 
     weatherDesc.innerHTML = `<div class="wx-desc-text">${w.desc}</div>${tiles}`;
 
@@ -1442,8 +1496,8 @@ import {
       detailWeather.classList.remove("has-alert", "alert-warn", "alert-severe");
     }
 
-    // Wochen-Temperaturkurve
-    if (w.fullForecast) renderTempChart(w.fullForecast);
+    // Temperaturkurve (Woche/Tag umschaltbar)
+    renderTempChart(w);
 
     // Startet die neue Sonnen-Mond-Animation
     if (activeCity) {
@@ -1642,18 +1696,52 @@ import {
   }
 
 
-  // ===== WOCHEN-TEMPERATURKURVE (SVG-Liniendiagramm) =====
-  function renderTempChart(fc) {
+  // ===== TEMPERATURKURVE (SVG) – umschaltbar Woche/Tag =====
+  function renderTempChart(w) {
+    if (w) tempChartWeather = w;
+    w = tempChartWeather;
     const container = document.getElementById("temp-chart-container");
     if (!container) return;
-    const maxArr = fc.max,
-      minArr = fc.min,
-      timeArr = fc.time;
-    if (!maxArr || maxArr.length < 2) {
+    if (!w) {
       container.style.display = "none";
       return;
     }
-    container.style.display = "block";
+
+    // Titel, Legende und Umschalt-Buttons an den aktiven Modus anpassen
+    const titleEl = container.querySelector(".temp-chart-title");
+    if (titleEl)
+      titleEl.textContent =
+        tempChartMode === "day" ? t("tempChartTitleDay") : t("tempChartTitle");
+
+    const legend = document.getElementById("temp-chart-legend");
+    if (legend)
+      legend.innerHTML =
+        tempChartMode === "day"
+          ? `<span class="tc-leg tc-leg-max">${t("legTemp")}</span>`
+          : `<span class="tc-leg tc-leg-max">${t("legMax")}</span>` +
+            `<span class="tc-leg tc-leg-min">${t("legMin")}</span>`;
+
+    container.querySelectorAll(".tc-toggle-btn").forEach((btn) => {
+      const active = btn.dataset.mode === tempChartMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    const ok =
+      tempChartMode === "day"
+        ? renderTempChartDay(w, container)
+        : renderTempChartWeek(w, container);
+    container.style.display = ok ? "block" : "none";
+  }
+
+  // Wochenverlauf: Höchst-/Tiefstwerte pro Tag
+  function renderTempChartWeek(w, container) {
+    const fc = w.fullForecast;
+    if (!fc) return false;
+    const maxArr = fc.max,
+      minArr = fc.min,
+      timeArr = fc.time;
+    if (!maxArr || maxArr.length < 2) return false;
 
     const W = 320,
       H = 150,
@@ -1726,6 +1814,125 @@ import {
         ${maxPoints}
         ${dayLabels}
       </svg>`;
+    return true;
+  }
+
+  // Tagesverlauf: stündliche Temperatur für heute
+  function renderTempChartDay(w, container) {
+    const hourly = w.hourly;
+    if (
+      !hourly ||
+      !Array.isArray(hourly.time) ||
+      !Array.isArray(hourly.temperature_2m)
+    )
+      return false;
+
+    // Heutiges Datum in der Zeitzone der Stadt bestimmen
+    const cityTz = (activeCity && activeCity.timezone) || undefined;
+    const nowRef = now();
+    let todayStr, nowHour;
+    try {
+      todayStr = nowRef.toLocaleDateString("en-CA", { timeZone: cityTz });
+      nowHour =
+        parseInt(
+          nowRef.toLocaleTimeString("en-GB", {
+            timeZone: cityTz,
+            hour: "2-digit",
+            hour12: false,
+          }),
+          10,
+        ) % 24;
+    } catch (e) {
+      todayStr =
+        (w.fullForecast && w.fullForecast.time && w.fullForecast.time[0]) ||
+        (hourly.time[0] || "").slice(0, 10);
+      nowHour = nowRef.getHours();
+    }
+
+    const vals = [];
+    const hours = [];
+    for (let i = 0; i < hourly.time.length; i++) {
+      if (
+        hourly.time[i].slice(0, 10) === todayStr &&
+        hourly.temperature_2m[i] != null
+      ) {
+        vals.push(hourly.temperature_2m[i]);
+        hours.push(parseInt(hourly.time[i].split("T")[1].split(":")[0], 10));
+      }
+    }
+    if (vals.length < 2) return false;
+
+    const W = 320,
+      H = 150,
+      padX = 26,
+      padTop = 24,
+      padBottom = 28;
+    const n = vals.length;
+    let lo = Math.min(...vals),
+      hi = Math.max(...vals);
+    if (lo === hi) {
+      lo -= 1;
+      hi += 1;
+    }
+    const span = hi - lo;
+    const xAt = (i) => padX + (i * (W - 2 * padX)) / (n - 1);
+    const yAt = (v) =>
+      padTop + (1 - (v - lo) / span) * (H - padTop - padBottom);
+
+    const linePath = vals
+      .map(
+        (v, i) =>
+          `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`,
+      )
+      .join(" ");
+    const areaPath =
+      `M${xAt(0).toFixed(1)},${(H - padBottom).toFixed(1)} ` +
+      vals.map((v, i) => `L${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ") +
+      ` L${xAt(n - 1).toFixed(1)},${(H - padBottom).toFixed(1)} Z`;
+
+    // Achsenbeschriftung nur alle paar Stunden, damit es lesbar bleibt
+    const step = Math.ceil(n / 6);
+    const hourLabels = hours
+      .map((h, i) =>
+        i % step === 0 || i === n - 1
+          ? `<text x="${xAt(i).toFixed(1)}" y="${H - 8}" class="tc-axis" text-anchor="middle">${String(h).padStart(2, "0")}</text>`
+          : "",
+      )
+      .join("");
+
+    // Aktuelle Stunde und die Extremwerte des Tages markieren
+    const minIdx = vals.indexOf(Math.min(...vals));
+    const maxIdx = vals.indexOf(Math.max(...vals));
+    const markIdx = new Set([minIdx, maxIdx]);
+    const nowIdx = hours.indexOf(nowHour);
+    const valPoints = vals
+      .map((v, i) => {
+        let out = "";
+        if (i === nowIdx)
+          out += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="4" class="tc-dot-now"/>`;
+        if (markIdx.has(i)) {
+          out += `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" class="tc-dot-max"/>`;
+          const above = i === maxIdx;
+          out += `<text x="${xAt(i).toFixed(1)}" y="${(yAt(v) + (above ? -7 : 14)).toFixed(1)}" class="tc-val tc-val-max" text-anchor="middle">${convTemp(v)}°</text>`;
+        }
+        return out;
+      })
+      .join("");
+
+    container.querySelector(".temp-chart-svg-wrap").innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" class="temp-chart-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="tcArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#tcArea)"/>
+        <path d="${linePath}" class="tc-line tc-line-max"/>
+        ${valPoints}
+        ${hourLabels}
+      </svg>`;
+    return true;
   }
 
   function renderForecast(forecast, cityId) {
@@ -1861,6 +2068,19 @@ import {
     if (e.target === overlay) closeDetail();
   });
 
+  // Umschalter Wochen-/Tagesverlauf der Temperaturkurve
+  const tempChartToggle = document.getElementById("temp-chart-toggle");
+  if (tempChartToggle) {
+    tempChartToggle.addEventListener("click", (e) => {
+      const btn = e.target.closest(".tc-toggle-btn");
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      if (!mode || mode === tempChartMode) return;
+      tempChartMode = mode;
+      renderTempChart();
+    });
+  }
+
   function clearSearch() {
     searchInput.value = "";
     clearBtn.classList.remove("visible");
@@ -1988,6 +2208,10 @@ import {
 
     const tcTitle = document.querySelector(".temp-chart-title");
     if (tcTitle) tcTitle.textContent = t("tempChartTitle");
+    const tcWeekBtn = document.querySelector('.tc-toggle-btn[data-mode="week"]');
+    if (tcWeekBtn) tcWeekBtn.textContent = t("tcWeek");
+    const tcDayBtn = document.querySelector('.tc-toggle-btn[data-mode="day"]');
+    if (tcDayBtn) tcDayBtn.textContent = t("tcDay");
     const legMax = document.querySelector(".tc-leg-max");
     if (legMax) legMax.textContent = t("legMax");
     const legMin = document.querySelector(".tc-leg-min");

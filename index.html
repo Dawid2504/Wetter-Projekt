@@ -221,7 +221,27 @@
           style="display: none"
         >
           <div class="temp-chart-title">📈 Temperaturverlauf der Woche</div>
-          <div class="temp-chart-legend">
+          <div class="temp-chart-toggle" id="temp-chart-toggle" role="tablist">
+            <button
+              type="button"
+              class="tc-toggle-btn active"
+              data-mode="week"
+              role="tab"
+              aria-selected="true"
+            >
+              Woche
+            </button>
+            <button
+              type="button"
+              class="tc-toggle-btn"
+              data-mode="day"
+              role="tab"
+              aria-selected="false"
+            >
+              Tag
+            </button>
+          </div>
+          <div class="temp-chart-legend" id="temp-chart-legend">
             <span class="tc-leg tc-leg-max">● Höchst</span>
             <span class="tc-leg tc-leg-min">● Tiefst</span>
           </div>

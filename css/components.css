@@ -59,6 +59,59 @@ body.light-mode .wx-tile {
   }
 }
 
+/* Ausklappbare Sektion für die selteneren Detailwerte */
+.wx-more {
+  width: 100%;
+  margin-top: 12px;
+}
+.wx-more-summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  width: fit-content;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+.wx-more-summary::-webkit-details-marker {
+  display: none;
+}
+.wx-more-summary::after {
+  content: "▾";
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+.wx-more[open] .wx-more-summary::after {
+  transform: rotate(180deg);
+}
+.wx-more-summary:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.12);
+}
+body.light-mode .wx-more-summary {
+  background: rgba(0, 0, 0, 0.04);
+}
+body.light-mode .wx-more-summary:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+.wx-more-grid {
+  margin-top: 12px;
+}
+
 /* ===== UNWETTERWARNUNGEN ===== */
 .wx-alert {
   display: flex;

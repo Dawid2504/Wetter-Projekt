@@ -9,9 +9,16 @@
   position: relative;
   width: 100%;
   height: 125px;
-  border-top-left-radius: 125px;
-  border-top-right-radius: 125px;
+  /* Echte Halb-Ellipse über die volle Breite: horizontaler Radius = 50 %
+     der Breite, vertikaler Radius = 100 % der Höhe. So passt der Bogen bei
+     jeder Breite exakt zur Positions-Berechnung der Sonne (x = 50−50·cos,
+     y = 100·sin). Zuvor ergab der feste 125px-Radius bei breitem Container
+     einen abgeflachten Bogen, wodurch die Sonne neben der Linie lag. */
+  border-top-left-radius: 50% 100%;
+  border-top-right-radius: 50% 100%;
   border: 2px dashed var(--text-secondary);
+  border-left: none;
+  border-right: none;
   border-bottom: 2px solid var(--text-primary);
   box-sizing: border-box;
 }

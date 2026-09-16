@@ -1,5 +1,5 @@
 /* Service Worker für "Wetter weltweit" */
-const CACHE_VERSION = "wetter-v5";
+const CACHE_VERSION = "wetter-v6";
 
 const APP_SHELL = [
   "/",

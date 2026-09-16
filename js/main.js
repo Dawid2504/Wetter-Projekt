@@ -960,7 +960,17 @@ const DEFAULT_RAINVIEWER_HOST = "https://tilecache.rainviewer.com";
 function normalizeRainViewerHost(host) {
   if (typeof host !== "string" || !host.trim()) return DEFAULT_RAINVIEWER_HOST;
   const value = host.trim().replace(/\/+$/, "");
-  return value.includes("rainviewer.com") ? value : DEFAULT_RAINVIEWER_HOST;
+  try {
+    const parsed = new URL(value);
+    const name = parsed.hostname.toLowerCase();
+    if (
+      parsed.protocol === "https:" &&
+      (name === "rainviewer.com" || name.endsWith(".rainviewer.com"))
+    ) {
+      return parsed.origin;
+    }
+  } catch (e) {}
+  return DEFAULT_RAINVIEWER_HOST;
 }
 
 function collectFrameList(source) {

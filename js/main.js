@@ -955,6 +955,33 @@ let radarMap = null,
   cityMarker = null,
   detailMarkers = [],
   windMarkers = [];
+const DEFAULT_RAINVIEWER_HOST = "https://tilecache.rainviewer.com";
+
+function normalizeRainViewerHost(host) {
+  if (typeof host !== "string" || !host.trim()) return DEFAULT_RAINVIEWER_HOST;
+  const value = host.trim().replace(/\/+$/, "");
+  try {
+    const parsed = new URL(value);
+    const name = parsed.hostname.toLowerCase();
+    if (
+      parsed.protocol === "https:" &&
+      (name === "rainviewer.com" || name.endsWith(".rainviewer.com"))
+    ) {
+      return parsed.origin;
+    }
+  } catch (e) {}
+  return DEFAULT_RAINVIEWER_HOST;
+}
+
+function collectFrameList(source) {
+  if (!source) return [];
+  if (Array.isArray(source)) return source;
+  if (typeof source !== "object") return [];
+  return []
+    .concat(Array.isArray(source.past) ? source.past : [])
+    .concat(Array.isArray(source.nowcast) ? source.nowcast : [])
+    .concat(Array.isArray(source.future) ? source.future : []);
+}
 
 function buildMarkerPopup(city) {
   const weather = weatherCache[city.id];
@@ -1019,9 +1046,14 @@ async function loadRainViewerData() {
     );
     if (!res.ok) throw new Error("RainViewer API antwortet nicht");
     const data = await res.json();
-    radarHost = data.host || "https://tile.rainviewer.com";
-    radarFrames = data.radar?.past || [];
-    satelliteFrames = data.satellite?.ir || [];
+    radarHost = normalizeRainViewerHost(data.host);
+    radarFrames = collectFrameList(data.radar);
+    satelliteFrames = []
+      .concat(collectFrameList(data.satellite?.ir))
+      .concat(collectFrameList(data.satellite?.infrared))
+      .concat(collectFrameList(data.satellite))
+      .filter((f) => f && typeof f.path === "string" && Number.isFinite(f.time))
+      .sort((a, b) => a.time - b.time);
 
     // Falls keine Satellitenbilder verfügbar sind, leeres Array verwenden
     if (!satelliteFrames.length) {
@@ -1152,7 +1184,9 @@ function showSatelliteFrame(pos) {
   );
 
   if (!satelliteLayers[pos]) {
-    const tileUrl = `${radarHost}${frame.path}/256/{z}/{x}/{y}/0/0_0.png`;
+    const tileUrl = frame.path.includes("/satellite/infrared/")
+      ? `${radarHost}${frame.path}/{z}/{x}/{y}/1_0.png`
+      : `${radarHost}${frame.path}/256/{z}/{x}/{y}/0/0_0.png`;
     const layer = L.tileLayer(tileUrl, {
       opacity: 0.6,
       maxZoom: 10,

@@ -45,7 +45,6 @@ const APP_SHELL = [
 const NETWORK_ONLY = [
   "open-meteo.com",
   "rainviewer.com",
-  "basemaps.cartocdn.com",
   "tile.openstreetmap.org",
   "nominatim.openstreetmap.org",
   "unpkg.com", // Leaflet vom CDN – über Netz laden
